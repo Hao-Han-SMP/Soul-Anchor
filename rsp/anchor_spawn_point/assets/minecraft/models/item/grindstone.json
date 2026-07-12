@@ -1,0 +1,11 @@
+{
+  "parent": "minecraft:block/grindstone",
+  "overrides": [
+    {
+      "predicate": {
+        "custom_model_data": 910001
+      },
+      "model": "minecraft:item/soul_anchor"
+    }
+  ]
+}
