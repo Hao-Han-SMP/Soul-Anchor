@@ -20,7 +20,7 @@ Ngôn ngữ: Tiếng Việt | [English](README.en.md)
 
 ## Tổng quan
 
-Soul Anchor là plugin Minecraft dành cho HaoHan SMP. Plugin cung cấp hệ thống teleportation tùy chỉnh, quản lý điểm dừng chân (waypoint), giao diện thân thiện, và hỗ trợ permission linh hoạt để người chơi có thể du lịch nhanh chóng giữa các địa điểm quan trọng trong thế giới chơi.
+Soul Anchor là plugin Minecraft dành cho HaoHan SMP. Plugin cung cấp hệ thống teleportation tùy chỉnh, quản lý điểm dừng chân (waypoint), giao diện thân thiện, và hỗ trợ [...]
 
 ## Công nghệ sử dụng
 
@@ -149,6 +149,57 @@ Ví dụ JSON:
 ```
 
 Chạy `/soulanchor reload` để áp dụng thay đổi mà không cần restart server.
+
+## Công thức Recipe
+
+Soul Anchor cung cấp các công thức crafting để tạo ra các vật phẩm liên quan đến teleportation. Các recipe được định nghĩa trong datapack.
+
+### Soul Anchor (Vật phẩm chính)
+
+Công thức crafting Soul Anchor:
+
+```
+A A A
+A B A
+A A A
+```
+
+- `A`: Amethyst Shard
+- `B`: Ender Pearl
+
+**Kết quả**: 1x Soul Anchor
+
+### Waypoint Crystal
+
+Công thức crafting Waypoint Crystal (được sử dụng để tạo waypoint):
+
+```
+  A
+A B A
+  A
+```
+
+- `A`: Glowstone Dust
+- `B`: Soul Anchor
+
+**Kết quả**: 1x Waypoint Crystal
+
+### Teleport Scroll
+
+Công thức crafting Teleport Scroll (vật phẩm để teleport nhanh):
+
+```
+A B A
+A C A
+```
+
+- `A`: Paper
+- `B`: Waypoint Crystal
+- `C`: Ink Sac
+
+**Kết quả**: 3x Teleport Scroll
+
+Các recipe có thể được tùy chỉnh bằng cách chỉnh sửa file recipe trong datapack nằm tại `Soul-Anchor_Datapack/data/soulanchor/recipes/`.
 
 ## Ghi chú vận hành
 
