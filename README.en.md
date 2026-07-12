@@ -1,35 +1,55 @@
+<div align="center">
+
+<img src="asset/image/anchor.png" alt="Soul Anchor banner" width="100%">
+
 # Soul Anchor
 
-![Soul Anchor banner](asset/image/anchor.png)
+A personal teleport plugin for HaoHan SMP, built around physical Soul Anchors with limits and survival-friendly costs.
 
-**Language:** [Tieng Viet](README.md) | English
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-62B47A?style=for-the-badge&logo=minecraft&logoColor=white)](https://www.minecraft.net/)
+[![Paper](https://img.shields.io/badge/Paper-API-222222?style=for-the-badge&logo=paper&logoColor=white)](https://papermc.io/)
+[![Purpur](https://img.shields.io/badge/Purpur-Compatible-8A4FFF?style=for-the-badge)](https://purpurmc.org/)
+[![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Maven](https://img.shields.io/badge/Maven-Build-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)](https://maven.apache.org/)
 
-Soul Anchor is a personal teleport plugin for HaoHan SMP. It lets players place their own physical Soul Anchors, open a GUI to choose a destination, and teleport with clear survival-friendly costs instead of acting like a free `/home` command.
+Language: [Tiếng Việt](README.md) | English
+
+</div>
 
 ## Overview
 
-Soul Anchor targets Paper/Purpur `1.21.11`. Each anchor is a physical teleport point in the world. Players interact with an anchor to open their private Soul Anchor network, then choose another owned anchor as the destination.
+Soul Anchor is a Minecraft plugin for Paper/Purpur `1.21.11` survival servers. It lets players place private Soul Anchors in the world, open a GUI to choose destinations, and teleport with clear costs instead of behaving like a free `/home` command.
 
-By default, each player can own up to `3` Soul Anchors. Every teleport costs `1 Echo Shard` plus levels based on distance.
+Each Soul Anchor is a physical teleport point. Players must interact with an anchor to open their own teleport network, then choose another owned anchor as the destination. By default, each player may own up to `3` Soul Anchors.
 
-## Features
+## Tech Stack
 
-- Default limit of `3` Soul Anchors per player.
-- 27-slot GUI with the three anchor slots centered.
-- Warmup, cooldown, and safe-location checks.
-- Destination search prefers a safe block beside the target anchor.
-- Default cost: `10 levels / 1000 blocks` + `1 Echo Shard`.
-- Cross-dimension cost: `30 levels` + `1 Echo Shard`.
-- Anchor data persists in `plugins/SoulAnchor/anchors.yml`.
-- Protection against pistons, explosions, fluids, and non-owner breaking.
-- Resource pack support for the custom Soul Anchor model.
+| Toolkit | Role |
+| --- | --- |
+| Paper API | Main server plugin API. |
+| Purpur | Recommended server runtime. |
+| Java 21 | Main language and runtime. |
+| Maven | Dependency management and jar build. |
+| Resource Pack | Custom Soul Anchor model and textures. |
 
 ## Project Components
 
 | Component | Description |
 | --- | --- |
-| Plugin | Paper/Purpur plugin source in `src/`, handling items, anchors, GUI, teleporting, commands, and config. |
+| Plugin | Paper/Purpur plugin source in `src/`, handling items, anchors, GUI, teleport, commands, and config. |
 | Resource pack (`rsp`) | Resource pack source used to render the custom Soul Anchor model and textures. |
+
+## Features
+
+- Default limit of `3` Soul Anchors per player.
+- 27-slot GUI with the three anchor positions centered.
+- Teleport warmup, cooldown, and safe-location checks.
+- Destination search prefers a safe block beside the target Soul Anchor.
+- Default cost: `10 levels / 1000 blocks` + `1 Echo Shard`.
+- Cross-dimension cost: `30 levels` + `1 Echo Shard`.
+- Anchor data persists in `plugins/SoulAnchor/anchors.yml`.
+- Protection against pistons, explosions, fluids, and non-owner breaking.
+- Resource pack support for a custom Soul Anchor model.
 
 ## Requirements
 
@@ -48,15 +68,15 @@ By default, each player can own up to `3` Soul Anchors. Every teleport costs `1 
 
 ## Resource Pack
 
-The resource pack is required for the custom Soul Anchor model. Without it, the item or display model may render incorrectly.
+The resource pack is required for the custom Soul Anchor model. Without it, the item or world model may render incorrectly or appear as a purple-black missing texture.
 
-Local pack build output:
+Local resource pack build output:
 
 ```text
 target/anchor_spawn_point_fixed.zip
 ```
 
-If the model appears as a purple-black missing texture, replace the pack with the latest zip and reload resources with `F3 + T` or restart the game.
+After replacing the pack, reload resources with `F3 + T` or restart the game.
 
 ## Recipe
 
@@ -68,8 +88,8 @@ Crafts `1x Soul Anchor` using Soul Lantern, Soul Sand, Ender Pearl, Deepslate, a
 
 1. Place a Soul Anchor in the world.
 2. Right click the Soul Anchor to open the GUI.
-3. Choose a destination anchor.
-4. Wait for the warmup to finish.
+3. Choose a destination anchor in the Soul Anchor network.
+4. Wait for warmup to finish.
 5. The plugin rechecks anchor state, safe destination, and cost.
 6. The player is teleported to a safe block beside the destination anchor.
 
@@ -103,7 +123,7 @@ Alias:
 | `soulanchor.rename` | true | Allows renaming anchors. |
 | `soulanchor.admin` | op | General admin permission. |
 | `soulanchor.admin.give` | op | Allows the give command. |
-| `soulanchor.admin.remove` | op | Allows removing/breaking other players' anchors. |
+| `soulanchor.admin.remove` | op | Allows removing or breaking other players' anchors. |
 | `soulanchor.admin.reload` | op | Allows config reloads. |
 | `soulanchor.bypass.cost` | op | Bypasses teleport cost. |
 | `soulanchor.bypass.cooldown` | op | Bypasses cooldown. |
@@ -128,7 +148,7 @@ Important keys:
 | `item.id` | `haohansmp:soul_anchor` | Internal ID and item model. |
 | `item.material` | `GRINDSTONE` | Base item used for crafting/giving. |
 | `item.placed-block` | `BARRIER` | Placeholder block used after placement. |
-| `distance.blocks-per-tier` | `1000` | Distance per cost tier. |
+| `distance.blocks-per-tier` | `1000` | Blocks per cost tier. |
 | `distance.levels-per-tier` | `10` | Levels per tier. |
 | `teleport.echo-shard-cost` | `1` | Echo Shard cost per teleport. |
 | `teleport.warmup-seconds` | `3` | Warmup duration. |
@@ -136,6 +156,8 @@ Important keys:
 | `cross-dimension.level-cost` | `30` | Level cost for cross-dimension teleport. |
 
 ## Build From Source
+
+Run from the project root:
 
 ```bash
 mvn clean package
@@ -154,7 +176,7 @@ target/SoulAnchor-1.0.1.jar
 target/anchor_spawn_point_fixed.zip
 ```
 
-## Notes
+## Operation Notes
 
 - When updating the model, replace both the plugin jar and resource pack.
 - If old items still render incorrectly, get a fresh item with `/soulanchor give` after the new jar is running.

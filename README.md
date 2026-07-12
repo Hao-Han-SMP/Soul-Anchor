@@ -1,91 +1,111 @@
+<div align="center">
+
+<img src="asset/image/anchor.png" alt="Soul Anchor banner" width="100%">
+
 # Soul Anchor
 
-![Soul Anchor banner](asset/image/anchor.png)
+Plugin dịch chuyển cá nhân dành cho HaoHan SMP, xây dựng quanh hệ thống Soul Anchor vật lý có giới hạn và có chi phí.
 
-**Ngon ngu:** Tieng Viet | [English](README.en.md)
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-62B47A?style=for-the-badge&logo=minecraft&logoColor=white)](https://www.minecraft.net/)
+[![Paper](https://img.shields.io/badge/Paper-API-222222?style=for-the-badge&logo=paper&logoColor=white)](https://papermc.io/)
+[![Purpur](https://img.shields.io/badge/Purpur-Compatible-8A4FFF?style=for-the-badge)](https://purpurmc.org/)
+[![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![Maven](https://img.shields.io/badge/Maven-Build-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)](https://maven.apache.org/)
 
-Soul Anchor la plugin teleport ca nhan cho HaoHan SMP. Plugin cho phep nguoi choi dat cac Soul Anchor rieng, mo GUI de chon diem den, va dich chuyen voi chi phi ro rang thay vi tao mot lenh `/home` mien phi.
+Ngôn ngữ: Tiếng Việt | [English](README.en.md)
 
-## Tong Quan
+</div>
 
-Soul Anchor duoc thiet ke cho server survival Paper/Purpur `1.21.11`. Moi anchor la mot diem dich chuyen vat ly trong the gioi. Nguoi choi phai tuong tac voi anchor de mo mang dich chuyen, sau do chon anchor dich den trong GUI.
+## Tổng Quan
 
-Mac dinh, moi nguoi choi co toi da `3` Soul Anchor. Moi lan teleport ton `1 Echo Shard` va level theo khoang cach.
+Soul Anchor là plugin Minecraft dành cho server survival Paper/Purpur `1.21.11`. Plugin cho phép người chơi đặt các Soul Anchor riêng trong thế giới, mở GUI để chọn điểm đến, và dịch chuyển với chi phí rõ ràng thay vì hoạt động như một lệnh `/home` miễn phí.
 
-## Tinh Nang
+Mỗi Soul Anchor là một điểm dịch chuyển vật lý. Người chơi phải tương tác với anchor để mở mạng dịch chuyển của mình, sau đó chọn một anchor khác làm điểm đến. Mặc định mỗi người chơi sở hữu tối đa `3` Soul Anchor.
 
-- Gioi han mac dinh `3` Soul Anchor moi nguoi choi.
-- GUI 27 slot, 3 anchor duoc can giua.
-- Teleport co warmup, cooldown va kiem tra vi tri an toan.
-- Diem den uu tien vi tri dung canh Soul Anchor.
-- Chi phi mac dinh: `10 level / 1000 block` + `1 Echo Shard`.
-- Khac dimension: `30 level` + `1 Echo Shard`.
-- Luu du lieu anchor vao `plugins/SoulAnchor/anchors.yml`.
-- Bao ve anchor khoi piston, explosion, fluid va nguoi khong phai chu so huu.
-- Ho tro resource pack de hien thi model Soul Anchor rieng.
+## Công Nghệ Sử Dụng
 
-## Thanh Phan Du An
-
-| Thanh phan | Mo ta |
+| Toolkit | Vai trò |
 | --- | --- |
-| Plugin | Ma nguon Paper/Purpur plugin trong `src/`, xu ly item, anchor, GUI, teleport, command va config. |
-| Resource pack (`rsp`) | Source resource pack dung de hien thi model va texture Soul Anchor custom. |
+| Paper API | Nền tảng API chính để phát triển plugin server. |
+| Purpur | Môi trường server khuyến nghị để triển khai. |
+| Java 21 | Ngôn ngữ và runtime chính của plugin. |
+| Maven | Quản lý dependency và build file `.jar`. |
+| Resource Pack | Hiển thị model và texture Soul Anchor tùy chỉnh. |
 
-## Yeu Cau
+## Thành Phần Dự Án
 
-- Paper hoac Purpur `1.21.11`.
+| Thành phần | Mô tả |
+| --- | --- |
+| Plugin | Mã nguồn Paper/Purpur plugin trong `src/`, xử lý item, anchor, GUI, teleport, command và config. |
+| Resource pack (`rsp`) | Source resource pack dùng để hiển thị model và texture Soul Anchor tùy chỉnh. |
+
+## Tính Năng
+
+- Giới hạn mặc định `3` Soul Anchor mỗi người chơi.
+- GUI 27 slot, 3 vị trí anchor được căn giữa.
+- Teleport có warmup, cooldown và kiểm tra vị trí an toàn.
+- Điểm đến ưu tiên vị trí đứng cạnh Soul Anchor.
+- Chi phí mặc định: `10 level / 1000 block` + `1 Echo Shard`.
+- Khác dimension: `30 level` + `1 Echo Shard`.
+- Dữ liệu anchor được lưu tại `plugins/SoulAnchor/anchors.yml`.
+- Bảo vệ anchor khỏi piston, explosion, fluid và người không phải chủ sở hữu.
+- Hỗ trợ resource pack để hiển thị model Soul Anchor riêng.
+
+## Yêu Cầu
+
+- Minecraft server chạy Paper hoặc Purpur `1.21.11`.
 - Java `21`.
-- Maven neu build tu source.
-- Resource pack Soul Anchor cho model custom.
+- Maven nếu cần build từ mã nguồn.
+- Resource pack Soul Anchor để hiển thị model tùy chỉnh.
 
-## Cai Dat
+## Cài Đặt
 
-1. Build plugin hoac lay file jar.
-2. Copy jar vao thu muc `plugins/` cua server.
-3. Cai resource pack Soul Anchor cho client hoac khai bao tren server.
+1. Build plugin hoặc tải file `.jar`.
+2. Copy file `.jar` vào thư mục `plugins/` của server.
+3. Cài resource pack Soul Anchor cho client hoặc cấu hình server để người chơi tải resource pack khi tham gia.
 4. Restart server.
-5. Dung recipe hoac lenh `/soulanchor give <player> [amount]` de lay Soul Anchor.
+5. Lấy Soul Anchor bằng recipe hoặc lệnh admin `/soulanchor give <player> [amount]`.
 
 ## Resource Pack
 
-Resource pack can thiet de Soul Anchor hien thi model rieng. Neu khong cai pack, item/block co the hien sai model hoac texture.
+Resource pack là bắt buộc nếu muốn Soul Anchor hiển thị đúng model tùy chỉnh. Nếu không cài pack, item hoặc model hiển thị trong thế giới có thể bị sai hoặc hiện texture tím-đen.
 
-File pack local sau khi build:
+File resource pack build sẵn trong workspace local:
 
 ```text
 target/anchor_spawn_point_fixed.zip
 ```
 
-Neu thay texture tim-den, hay thay dung zip moi va reload resource pack bang `F3 + T` hoac restart game.
+Sau khi thay resource pack, reload resource bằng `F3 + T` hoặc restart game.
 
 ## Recipe
 
 ![Soul Anchor recipe](asset/image/recipe.png)
 
-Cong thuc tao `1x Soul Anchor` su dung Soul Lantern, Soul Sand, Ender Pearl, Deepslate va Obsidian. Recipe co the bat/tat trong `config.yml` bang `recipe.enabled`.
+Công thức tạo `1x Soul Anchor` sử dụng Soul Lantern, Soul Sand, Ender Pearl, Deepslate và Obsidian. Recipe có thể bật hoặc tắt trong `config.yml` bằng `recipe.enabled`.
 
-## Cach Su Dung
+## Cách Sử Dụng
 
-1. Dat Soul Anchor trong the gioi.
-2. Right click vao Soul Anchor de mo GUI.
-3. Chon anchor dich den.
-4. Doi warmup hoan tat.
-5. Plugin kiem tra lai anchor, vi tri an toan va chi phi.
-6. Nguoi choi duoc teleport den vi tri dung canh anchor dich.
+1. Đặt Soul Anchor trong thế giới.
+2. Right click vào Soul Anchor để mở GUI.
+3. Chọn anchor đích trong mạng Soul Anchor.
+4. Chờ warmup hoàn tất.
+5. Plugin kiểm tra lại anchor, vị trí an toàn và chi phí.
+6. Người chơi được teleport đến vị trí an toàn cạnh anchor đích.
 
-Teleport se bi huy neu nguoi choi di chuyen qua nguong cho phep, nhan damage, gay damage, chet hoac logout trong thoi gian warmup.
+Teleport sẽ bị hủy nếu người chơi di chuyển quá xa, nhận damage, gây damage, chết hoặc logout trong thời gian warmup.
 
-## Lenh
+## Lệnh
 
-| Lenh | Mo ta |
+| Lệnh | Mô tả |
 | --- | --- |
-| `/soulanchor` | Hien danh sach anchor cua ban. |
-| `/soulanchor list` | Hien danh sach anchor cua ban. |
-| `/soulanchor list <player>` | Admin xem anchor cua nguoi choi khac. |
-| `/soulanchor give <player> [amount]` | Dua Soul Anchor cho nguoi choi. |
-| `/soulanchor rename <anchor> <new-name>` | Doi ten anchor cua ban. |
-| `/soulanchor remove <anchor>` | Xoa anchor cua ban. |
-| `/soulanchor reload` | Reload config va recipe. |
+| `/soulanchor` | Hiển thị danh sách anchor của bạn. |
+| `/soulanchor list` | Hiển thị danh sách anchor của bạn. |
+| `/soulanchor list <player>` | Admin xem anchor của người chơi khác. |
+| `/soulanchor give <player> [amount]` | Trao Soul Anchor cho người chơi. |
+| `/soulanchor rename <anchor> <new-name>` | Đổi tên anchor của bạn. |
+| `/soulanchor remove <anchor>` | Xóa anchor của bạn. |
+| `/soulanchor reload` | Reload config và recipe. |
 
 Alias:
 
@@ -95,67 +115,69 @@ Alias:
 
 ## Permission
 
-| Permission | Mac dinh | Mo ta |
+| Permission | Mặc định | Mô tả |
 | --- | --- | --- |
-| `soulanchor.use` | true | Cho phep dung GUI va teleport. |
-| `soulanchor.place` | true | Cho phep dat Soul Anchor. |
-| `soulanchor.break.own` | true | Cho phep pha anchor cua minh. |
-| `soulanchor.rename` | true | Cho phep doi ten anchor. |
-| `soulanchor.admin` | op | Quyen admin tong quat. |
-| `soulanchor.admin.give` | op | Cho phep dung lenh give. |
-| `soulanchor.admin.remove` | op | Cho phep xoa/pha anchor cua nguoi khac. |
-| `soulanchor.admin.reload` | op | Cho phep reload plugin config. |
-| `soulanchor.bypass.cost` | op | Bo qua chi phi teleport. |
-| `soulanchor.bypass.cooldown` | op | Bo qua cooldown. |
-| `soulanchor.bypass.warmup` | op | Bo qua warmup. |
-| `soulanchor.limit.unlimited` | false | Khong gioi han so anchor. |
+| `soulanchor.use` | true | Cho phép dùng GUI và teleport. |
+| `soulanchor.place` | true | Cho phép đặt Soul Anchor. |
+| `soulanchor.break.own` | true | Cho phép phá anchor của chính mình. |
+| `soulanchor.rename` | true | Cho phép đổi tên anchor. |
+| `soulanchor.admin` | op | Quyền admin tổng quát. |
+| `soulanchor.admin.give` | op | Cho phép dùng lệnh give. |
+| `soulanchor.admin.remove` | op | Cho phép xóa hoặc phá anchor của người khác. |
+| `soulanchor.admin.reload` | op | Cho phép reload config. |
+| `soulanchor.bypass.cost` | op | Bỏ qua chi phí teleport. |
+| `soulanchor.bypass.cooldown` | op | Bỏ qua cooldown. |
+| `soulanchor.bypass.warmup` | op | Bỏ qua warmup. |
+| `soulanchor.limit.unlimited` | false | Không giới hạn số anchor. |
 
-Plugin cung ho tro permission gioi han nhu `soulanchor.limit.5` hoac `soulanchor.limit.10`.
+Plugin cũng hỗ trợ permission giới hạn như `soulanchor.limit.5` hoặc `soulanchor.limit.10`.
 
-## Cau Hinh
+## Cấu Hình
 
-File config duoc tao tai:
+File config được tạo tại:
 
 ```text
 plugins/SoulAnchor/config.yml
 ```
 
-Mot so key quan trong:
+Một số key quan trọng:
 
-| Key | Mac dinh | Mo ta |
+| Key | Mặc định | Mô tả |
 | --- | --- | --- |
-| `limits.default` | `3` | So anchor mac dinh moi nguoi choi. |
-| `item.id` | `haohansmp:soul_anchor` | ID noi bo va item model. |
-| `item.material` | `GRINDSTONE` | Item nen de craft/give. |
-| `item.placed-block` | `BARRIER` | Block placeholder khi dat anchor. |
-| `distance.blocks-per-tier` | `1000` | Moi tier khoang cach. |
-| `distance.levels-per-tier` | `10` | Level moi tier. |
-| `teleport.echo-shard-cost` | `1` | Echo Shard moi lan teleport. |
-| `teleport.warmup-seconds` | `3` | Thoi gian warmup. |
+| `limits.default` | `3` | Số anchor mặc định mỗi người chơi. |
+| `item.id` | `haohansmp:soul_anchor` | ID nội bộ và item model. |
+| `item.material` | `GRINDSTONE` | Item nền để craft/give. |
+| `item.placed-block` | `BARRIER` | Block placeholder khi đặt anchor. |
+| `distance.blocks-per-tier` | `1000` | Số block mỗi tier chi phí. |
+| `distance.levels-per-tier` | `10` | Số level mỗi tier. |
+| `teleport.echo-shard-cost` | `1` | Echo Shard tiêu hao mỗi lần teleport. |
+| `teleport.warmup-seconds` | `3` | Thời gian warmup. |
 | `teleport.cooldown-seconds` | `30` | Cooldown sau teleport. |
-| `cross-dimension.level-cost` | `30` | Phi level khi khac dimension. |
+| `cross-dimension.level-cost` | `30` | Chi phí level khi teleport khác dimension. |
 
-## Build Tu Source
+## Build Từ Mã Nguồn
+
+Chạy lệnh sau tại thư mục gốc dự án:
 
 ```bash
 mvn clean package
 ```
 
-Jar Maven nam trong:
+File jar Maven nằm trong:
 
 ```text
 target/soul-anchor-1.0.1.jar
 ```
 
-Trong workspace local co the co them file build san:
+Trong workspace local có thể có thêm:
 
 ```text
 target/SoulAnchor-1.0.1.jar
 target/anchor_spawn_point_fixed.zip
 ```
 
-## Ghi Chu
+## Ghi Chú Vận Hành
 
-- Khi cap nhat model, hay thay ca plugin jar va resource pack.
-- Neu item cu van hien sai, lay item moi bang `/soulanchor give` sau khi server da chay jar moi.
-- Thu muc `rsp/` la source resource pack local va khong nen push neu khong can.
+- Khi cập nhật model, hãy thay cả plugin jar và resource pack.
+- Nếu item cũ vẫn hiển thị sai, lấy item mới bằng `/soulanchor give` sau khi server đã chạy jar mới.
+- Thư mục `rsp/` là source resource pack local và không nên push nếu không thật sự cần.
