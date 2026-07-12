@@ -59,6 +59,8 @@ Client can reload pack bang `F3 + T` hoac restart game sau khi thay zip moi.
 
 ## Cong Thuc Che Tao
 
+![Soul Anchor recipe](asset/image/recipe.png)
+
 Recipe shaped 3x3:
 
 ```text
