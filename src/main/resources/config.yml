@@ -4,7 +4,10 @@ limits:
 
 item:
   id: haohansmp:soul_anchor
-  material: GRINDSTONE
+  # Vật phẩm nền chỉ dùng để bắt sự kiện đặt; model được trỏ trực tiếp bằng item-model.
+  # Không cần và không được override model vanilla của vật phẩm này trong resource pack.
+  material: BARRIER
+  item-model: haohansmp:soul_anchor
   placed-block: BARRIER
   custom-model-data: 910001
   display-name: "&b&lSoul Anchor"
@@ -51,6 +54,12 @@ breaking:
   drop-item: true
 
 visuals:
+  # Model gốc cao khoảng 1.254 block; scale-y 0.877 đưa chiều cao về khoảng 1.1 block.
+  scale-x: 1.0
+  scale-y: 0.877
+  scale-z: 1.0
+  interaction-width: 1.2
+  interaction-height: 1.1
   idle-particles: true
   idle-particle-interval-ticks: 20
   particle-view-distance: 24

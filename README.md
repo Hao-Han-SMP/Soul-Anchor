@@ -4,7 +4,7 @@
 
 # Soul Anchor
 
-Plugin dịch chuyển cá nhân dành cho HaoHan SMP, xây dựng quanh hệ thống Soul Anchor vật lý có giới hạn và có chi phí.
+Plugin dịch chuyển cá nhân dành cho HaoHan SMP.
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-62B47A?style=for-the-badge&logo=minecraft&logoColor=white)](https://www.minecraft.net/)
 [![Paper](https://img.shields.io/badge/Paper-API-222222?style=for-the-badge&logo=paper&logoColor=white)](https://papermc.io/)
@@ -80,7 +80,7 @@ Sau khi thay resource pack, reload resource bằng `F3 + T` hoặc restart game.
 
 ## Recipe
 
-![Soul Anchor recipe](asset/image/recipe.png)
+![Soul Anchor recipe](asset/image/recipe.gif)
 
 Công thức tạo `1x Soul Anchor` sử dụng Soul Lantern, Soul Sand, Ender Pearl, Deepslate và Obsidian. Recipe có thể bật hoặc tắt trong `config.yml` bằng `recipe.enabled`.
 
@@ -146,7 +146,7 @@ Một số key quan trọng:
 | --- | --- | --- |
 | `limits.default` | `3` | Số anchor mặc định mỗi người chơi. |
 | `item.id` | `haohansmp:soul_anchor` | ID nội bộ và item model. |
-| `item.material` | `GRINDSTONE` | Item nền để craft/give. |
+| `item.material` | `BARRIER` | Item nền để craft/give; model riêng dùng `item.item-model`. |
 | `item.placed-block` | `BARRIER` | Block placeholder khi đặt anchor. |
 | `distance.blocks-per-tier` | `1000` | Số block mỗi tier chi phí. |
 | `distance.levels-per-tier` | `10` | Số level mỗi tier. |

@@ -146,7 +146,7 @@ Important keys:
 | --- | --- | --- |
 | `limits.default` | `3` | Default anchors per player. |
 | `item.id` | `haohansmp:soul_anchor` | Internal ID and item model. |
-| `item.material` | `GRINDSTONE` | Base item used for crafting/giving. |
+| `item.material` | `BARRIER` | Base item used for crafting/giving; the custom model uses `item.item-model`. |
 | `item.placed-block` | `BARRIER` | Placeholder block used after placement. |
 | `distance.blocks-per-tier` | `1000` | Blocks per cost tier. |
 | `distance.levels-per-tier` | `10` | Levels per tier. |

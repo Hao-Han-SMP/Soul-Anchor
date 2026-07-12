@@ -96,6 +96,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }
 
         saveDefaultConfig();
+        migrateLegacyDisplayMaterial();
         saveResource("messages.yml", false);
         messagesFile = new File(getDataFolder(), "messages.yml");
         messages = YamlConfiguration.loadConfiguration(messagesFile);
@@ -110,6 +111,27 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         Bukkit.getPluginManager().registerEvents(this, this);
         startIdleParticles();
         getLogger().info("Loaded " + anchorsById.size() + " Soul Anchors.");
+    }
+
+    private void migrateLegacyDisplayMaterial() {
+        boolean changed = false;
+        String material = getConfig().getString("item.material", "BARRIER");
+        if (material.equalsIgnoreCase("GRINDSTONE") || material.equalsIgnoreCase("JIGSAW")) {
+            getConfig().set("item.material", "BARRIER");
+            getLogger().info("Migrated Soul Anchor base material from " + material + " to BARRIER.");
+            changed = true;
+        }
+        if (getConfig().getDouble("visuals.scale-y", 0.877D) == 1.6D) {
+            getConfig().set("visuals.scale-y", 0.877D);
+            changed = true;
+        }
+        if (getConfig().getDouble("visuals.interaction-height", 1.1D) == 2.0D) {
+            getConfig().set("visuals.interaction-height", 1.1D);
+            changed = true;
+        }
+        if (changed) {
+            saveConfig();
+        }
     }
 
     @Override
@@ -157,10 +179,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             return;
         }
 
-        event.setCancelled(true);
         Location location = event.getBlockPlaced().getLocation();
         location.getBlock().setType(getAnchorBlockMaterial(), false);
-        consumePlacedItem(player, event.getHand());
 
         String name = nextDefaultName(player.getUniqueId());
         Anchor anchor = new Anchor(UUID.randomUUID(), player.getUniqueId(), name, location, 0F, 0F, Instant.now().toEpochMilli(), null, null);
@@ -718,8 +738,30 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName(color(getConfig().getString("item.display-name", "&b&lSoul Anchor")));
         meta.setLore(getConfig().getStringList("item.lore").stream().map(this::color).toList());
+        NamespacedKey itemModel = NamespacedKey.fromString(
+                getConfig().getString("item.item-model", "haohansmp:soul_anchor"));
+        if (itemModel != null) {
+            meta.setItemModel(itemModel);
+        }
+        // Giữ CMD để nhận diện/debug item cũ, nhưng resource pack mới không phụ thuộc vào nó.
         meta.setCustomModelData(getConfig().getInt("item.custom-model-data", 910001));
         meta.getPersistentDataContainer().set(itemTypeKey, PersistentDataType.STRING, getConfig().getString("item.id", "haohansmp:soul_anchor"));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /**
+     * Stack chỉ dành cho ItemDisplay. Tách khỏi item craft/place để model không bao giờ
+     * phụ thuộc vào GRINDSTONE, BARRIER hay CustomModelData của vật phẩm nền.
+     */
+    private ItemStack createAnchorDisplayItem() {
+        ItemStack item = new ItemStack(Material.PAPER);
+        ItemMeta meta = item.getItemMeta();
+        NamespacedKey itemModel = NamespacedKey.fromString(
+                getConfig().getString("item.item-model", "haohansmp:soul_anchor"));
+        if (itemModel != null) {
+            meta.setItemModel(itemModel);
+        }
         item.setItemMeta(meta);
         return item;
     }
@@ -801,7 +843,9 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                     readUuid(node.getString("visual-uuid")),
                     readUuid(node.getString("interaction-uuid"))
             );
-            if (location.getBlock().getType() == Material.AIR || location.getBlock().getType() == Material.GRINDSTONE) {
+            if (location.getBlock().getType() == Material.AIR
+                    || location.getBlock().getType() == Material.GRINDSTONE
+                    || location.getBlock().getType() == Material.JIGSAW) {
                 location.getBlock().setType(getAnchorBlockMaterial(), false);
             }
             anchor = spawnVisuals(anchor);
@@ -1032,9 +1076,9 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
     }
 
     private Material getAnchorMaterial() {
-        String configured = getConfig().getString("item.material", "GRINDSTONE");
+        String configured = getConfig().getString("item.material", "BARRIER");
         Material material = Material.matchMaterial(configured);
-        return material == null ? Material.GRINDSTONE : material;
+        return material == null ? Material.BARRIER : material;
     }
 
     private Material getAnchorBlockMaterial() {
@@ -1049,15 +1093,17 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         UUID visualId = existingDisplay instanceof ItemDisplay ? existingDisplay.getUniqueId() : null;
         UUID interactionId = existingInteraction instanceof Interaction ? existingInteraction.getUniqueId() : null;
 
+        if (existingDisplay instanceof ItemDisplay display) {
+            configureAnchorDisplay(display, anchor);
+        }
+        if (existingInteraction instanceof Interaction interaction) {
+            configureAnchorInteraction(interaction, anchor.id());
+        }
+
         if (visualId == null) {
-            Location displayLocation = anchor.location().clone().add(0.5D, 0.0D, 0.5D);
+            Location displayLocation = anchor.location().clone().add(0.5D, 0.5D, 0.5D);
             ItemDisplay display = anchor.location().getWorld().spawn(displayLocation, ItemDisplay.class, entity -> {
-                entity.setItemStack(createAnchorItem(1));
-                entity.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
-                entity.setGravity(false);
-                entity.setPersistent(true);
-                entity.setSilent(true);
-                entity.getPersistentDataContainer().set(anchorIdKey, PersistentDataType.STRING, anchor.id().toString());
+                configureAnchorDisplay(entity, anchor);
             });
             visualId = display.getUniqueId();
         }
@@ -1065,17 +1111,39 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         if (interactionId == null) {
             Location interactionLocation = anchor.location().clone().add(0.5D, 0.2D, 0.5D);
             Interaction interaction = anchor.location().getWorld().spawn(interactionLocation, Interaction.class, entity -> {
-                entity.setInteractionWidth(1.2F);
-                entity.setInteractionHeight(1.4F);
-                entity.setGravity(false);
-                entity.setPersistent(true);
-                entity.setSilent(true);
-                entity.getPersistentDataContainer().set(anchorIdKey, PersistentDataType.STRING, anchor.id().toString());
+                configureAnchorInteraction(entity, anchor.id());
             });
             interactionId = interaction.getUniqueId();
         }
 
         return new Anchor(anchor.id(), anchor.ownerId(), anchor.name(), anchor.location(), anchor.yaw(), anchor.pitch(), anchor.createdAt(), visualId, interactionId);
+    }
+
+    private void configureAnchorDisplay(ItemDisplay entity, Anchor anchor) {
+        entity.teleport(anchor.location().clone().add(0.5D, 0.5D, 0.5D));
+        entity.setItemStack(createAnchorDisplayItem());
+        entity.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+        float scaleX = (float) getConfig().getDouble("visuals.scale-x", 1.0D);
+        float scaleY = (float) getConfig().getDouble("visuals.scale-y", 0.877D);
+        float scaleZ = (float) getConfig().getDouble("visuals.scale-z", 1.0D);
+        entity.setTransformation(new org.bukkit.util.Transformation(
+                new org.joml.Vector3f(),
+                new org.joml.Quaternionf(),
+                new org.joml.Vector3f(scaleX, scaleY, scaleZ),
+                new org.joml.Quaternionf()));
+        entity.setGravity(false);
+        entity.setPersistent(true);
+        entity.setSilent(true);
+        entity.getPersistentDataContainer().set(anchorIdKey, PersistentDataType.STRING, anchor.id().toString());
+    }
+
+    private void configureAnchorInteraction(Interaction entity, UUID anchorId) {
+        entity.setInteractionWidth((float) getConfig().getDouble("visuals.interaction-width", 1.2D));
+        entity.setInteractionHeight((float) getConfig().getDouble("visuals.interaction-height", 1.1D));
+        entity.setGravity(false);
+        entity.setPersistent(true);
+        entity.setSilent(true);
+        entity.getPersistentDataContainer().set(anchorIdKey, PersistentDataType.STRING, anchorId.toString());
     }
 
     private Optional<Anchor> anchorFromEntity(Entity entity) {
