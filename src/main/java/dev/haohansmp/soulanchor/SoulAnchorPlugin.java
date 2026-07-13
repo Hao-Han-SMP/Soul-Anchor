@@ -132,6 +132,18 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             getConfig().set("visuals.interaction-height", 1.1D);
             changed = true;
         }
+        List<String> lore = new ArrayList<>(getConfig().getStringList("item.lore"));
+        boolean loreChanged = false;
+        for (int i = 0; i < lore.size(); i++) {
+            if (lore.get(i).equals("&fPlus: &b1 Echo Shard")) {
+                lore.set(i, "&fEcho Shard: &b1 beyond 2000 blocks");
+                loreChanged = true;
+                changed = true;
+            }
+        }
+        if (loreChanged) {
+            getConfig().set("item.lore", lore);
+        }
         if (changed) {
             saveConfig();
         }
@@ -747,7 +759,11 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             } else {
                 lore.add("&7Distance: &f" + formatDistance(source.location(), target.location()) + " blocks");
                 lore.add("");
-                lore.add("&7Requires: &a" + cost.requiredLevels() + " levels &7+ &b" + cost.shards() + " Echo Shard");
+                String requirement = "&7Requires: &a" + cost.requiredLevels() + " levels";
+                if (cost.shards() > 0) {
+                    requirement += " &7+ &b" + cost.shards() + " Echo Shard";
+                }
+                lore.add(requirement);
                 lore.add("&7XP charged: &e" + cost.experiencePoints() + " points");
                 lore.add("&fClick to teleport");
             }
@@ -1023,8 +1039,10 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
 
     private Cost calculateCost(Location source, Location target) {
         int requiredLevels;
+        int shards;
         if (!sameWorld(source, target)) {
             requiredLevels = Math.max(0, getConfig().getInt("cross-dimension.level-cost", 30));
+            shards = Math.max(0, getConfig().getInt("cross-dimension.echo-shard-cost", 1));
         } else {
             double dx = target.getX() - source.getX();
             double dz = target.getZ() - source.getZ();
@@ -1033,11 +1051,14 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             int levelsPerTier = Math.max(1, getConfig().getInt("distance.levels-per-tier", 10));
             int minCost = Math.max(0, getConfig().getInt("distance.minimum-level-cost", 10));
             requiredLevels = Math.max(minCost, (int) Math.ceil(distance / blocksPerTier) * levelsPerTier);
+            double freeShardDistance = Math.max(0D, getConfig().getDouble("teleport.echo-shard-free-distance", 2000D));
+            shards = distance <= freeShardDistance
+                    ? 0
+                    : Math.max(0, getConfig().getInt("teleport.echo-shard-cost", 1));
         }
 
         int pointsPerRequiredLevel = Math.max(0, getConfig().getInt("teleport.experience-points-per-required-level", 8));
         int experiencePoints = (int) Math.min(Integer.MAX_VALUE, (long) requiredLevels * pointsPerRequiredLevel);
-        int shards = Math.max(0, getConfig().getInt("teleport.echo-shard-cost", 1));
         return new Cost(requiredLevels, experiencePoints, shards);
     }
 

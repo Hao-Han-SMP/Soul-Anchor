@@ -47,7 +47,8 @@ Each Soul Anchor is a physical teleport point. Players must interact with an anc
 - Shared anchors count toward the recipient's same limit; by default, owned and shared anchors combined cannot exceed `3`.
 - Teleport warmup, cooldown, and safe-location checks.
 - Destination search prefers a safe block beside the target Soul Anchor.
-- Default requirement: `10 levels / 1000 blocks` + a fixed `1 Echo Shard`.
+- Default requirement: `10 levels / 1000 blocks`; travel up to `2,000 blocks` costs no Echo Shard.
+- Travel beyond `2,000 blocks` costs a fixed `1 Echo Shard`.
 - Actual XP charge: `8 XP points` per required level; required levels are only an eligibility threshold.
 - Cross-dimension travel requires `30 levels` + `1 Echo Shard` and uses the same XP charge formula.
 - Anchor data persists in `plugins/SoulAnchor/anchors.yml`.
@@ -56,13 +57,13 @@ Each Soul Anchor is a physical teleport point. Players must interact with an anc
 
 Examples when the player starts at exactly the required level with an empty XP progress bar:
 
-| Distance | Required level | Actual XP charge | Remaining level |
-| --- | ---: | ---: | ---: |
-| Up to 1,000 blocks | 10 | 80 XP | 6 |
-| Up to 2,000 blocks | 20 | 160 XP | 16 |
-| Up to 3,000 blocks | 30 | 240 XP | 27 |
-| Up to 4,000 blocks | 40 | 320 XP | 38 |
-| Up to 5,000 blocks | 50 | 400 XP | 48 |
+| Distance | Required level | Actual XP charge | Echo Shard | Remaining level |
+| --- | ---: | ---: | ---: | ---: |
+| Up to 1,000 blocks | 10 | 80 XP | 0 | 6 |
+| Up to 2,000 blocks | 20 | 160 XP | 0 | 16 |
+| Up to 3,000 blocks | 30 | 240 XP | 1 | 27 |
+| Up to 4,000 blocks | 40 | 320 XP | 1 | 38 |
+| Up to 5,000 blocks | 50 | 400 XP | 1 | 48 |
 
 Later tiers use the same formula: the required level increases by `10` per `1,000 blocks`, while the actual charge is `required level × 8` XP points. The remaining level can differ when the player starts with a higher level or existing XP progress.
 
@@ -166,7 +167,8 @@ Important keys:
 | `item.placed-block` | `BARRIER` | Placeholder block used after placement. |
 | `distance.blocks-per-tier` | `1000` | Blocks per cost tier. |
 | `distance.levels-per-tier` | `10` | Levels per tier. |
-| `teleport.echo-shard-cost` | `1` | Echo Shard cost per teleport. |
+| `teleport.echo-shard-cost` | `1` | Echo Shard charge beyond the free-distance threshold. |
+| `teleport.echo-shard-free-distance` | `2000` | Maximum distance that costs no Echo Shard. |
 | `teleport.experience-points-per-required-level` | `8` | Actual XP points charged per required level. |
 | `teleport.warmup-seconds` | `3` | Warmup duration. |
 | `teleport.cooldown-seconds` | `30` | Cooldown after teleport. |

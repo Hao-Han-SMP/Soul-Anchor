@@ -47,7 +47,8 @@ Mỗi Soul Anchor là một điểm dịch chuyển vật lý. Người chơi ph
 - Anchor được share tính vào cùng giới hạn tối đa của người nhận; mặc định tổng anchor sở hữu và được share không vượt quá `3`.
 - Teleport có warmup, cooldown và kiểm tra vị trí an toàn.
 - Điểm đến ưu tiên vị trí đứng cạnh Soul Anchor.
-- Yêu cầu mặc định: `10 level / 1000 block` + cố định `1 Echo Shard`.
+- Yêu cầu mặc định: `10 level / 1000 block`; quãng đường đến `2.000 block` không tốn Echo Shard.
+- Quãng đường trên `2.000 block` tốn cố định `1 Echo Shard`.
 - XP thực trả: `8 điểm XP` cho mỗi level yêu cầu; level yêu cầu chỉ là điều kiện để dịch chuyển.
 - Khác dimension: yêu cầu `30 level` + `1 Echo Shard`, trừ XP theo cùng công thức.
 - Dữ liệu anchor được lưu tại `plugins/SoulAnchor/anchors.yml`.
@@ -56,13 +57,13 @@ Mỗi Soul Anchor là một điểm dịch chuyển vật lý. Người chơi ph
 
 Ví dụ khi người chơi bắt đầu đúng level yêu cầu và thanh XP đang ở đầu level:
 
-| Khoảng cách | Level yêu cầu | XP thực trừ | Level còn lại |
-| --- | ---: | ---: | ---: |
-| Đến 1.000 block | 10 | 80 XP | 6 |
-| Đến 2.000 block | 20 | 160 XP | 16 |
-| Đến 3.000 block | 30 | 240 XP | 27 |
-| Đến 4.000 block | 40 | 320 XP | 38 |
-| Đến 5.000 block | 50 | 400 XP | 48 |
+| Khoảng cách | Level yêu cầu | XP thực trừ | Echo Shard | Level còn lại |
+| --- | ---: | ---: | ---: | ---: |
+| Đến 1.000 block | 10 | 80 XP | 0 | 6 |
+| Đến 2.000 block | 20 | 160 XP | 0 | 16 |
+| Đến 3.000 block | 30 | 240 XP | 1 | 27 |
+| Đến 4.000 block | 40 | 320 XP | 1 | 38 |
+| Đến 5.000 block | 50 | 400 XP | 1 | 48 |
 
 Các mốc tiếp theo tiếp tục theo cùng công thức: level yêu cầu tăng `10` mỗi `1.000 block`, còn XP thực trừ bằng `level yêu cầu × 8`. Level còn lại có thể khác bảng nếu người chơi có level hoặc tiến trình XP ban đầu cao hơn.
 
@@ -166,7 +167,8 @@ Một số key quan trọng:
 | `item.placed-block` | `BARRIER` | Block placeholder khi đặt anchor. |
 | `distance.blocks-per-tier` | `1000` | Số block mỗi tier chi phí. |
 | `distance.levels-per-tier` | `10` | Số level mỗi tier. |
-| `teleport.echo-shard-cost` | `1` | Echo Shard tiêu hao mỗi lần teleport. |
+| `teleport.echo-shard-cost` | `1` | Echo Shard tiêu hao khi vượt ngưỡng miễn phí. |
+| `teleport.echo-shard-free-distance` | `2000` | Khoảng cách tối đa không tốn Echo Shard. |
 | `teleport.experience-points-per-required-level` | `8` | Điểm XP thực trả cho mỗi level yêu cầu. |
 | `teleport.warmup-seconds` | `3` | Thời gian warmup. |
 | `teleport.cooldown-seconds` | `30` | Cooldown sau teleport. |
