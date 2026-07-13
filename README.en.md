@@ -49,10 +49,12 @@ Each Soul Anchor is a physical teleport point. Players must interact with an anc
 - Destination search prefers a safe block beside the target Soul Anchor.
 - Default requirement: `10 levels / 1000 blocks`; travel up to `2,000 blocks` costs no Echo Shard.
 - Travel beyond `2,000 blocks` costs a fixed `1 Echo Shard`.
+- Fishing has a `1% + 0.25%` chance per Luck of the Sea level to yield an Echo Shard, with no attempt limit.
+- A Warden killed by a player has a `15%` chance to drop one additional Echo Shard.
 - Actual XP charge: `8 XP points` per required level; required levels are only an eligibility threshold.
 - Cross-dimension travel requires `30 levels` + `1 Echo Shard` and uses the same XP charge formula.
 - Anchor data persists in `plugins/SoulAnchor/anchors.yml`.
-- Protection against pistons, explosions, fluids, and non-owner breaking.
+- Only the player who placed an anchor can break it; shared users and other players cannot.
 - Resource pack support for a custom Soul Anchor model.
 
 Examples when the player starts at exactly the required level with an empty XP progress bar:
@@ -140,7 +142,6 @@ Alias:
 | `soulanchor.share` | true | Allows sharing owned anchors with other players. |
 | `soulanchor.admin` | op | General admin permission. |
 | `soulanchor.admin.give` | op | Allows the give command. |
-| `soulanchor.admin.remove` | op | Allows admins to break other players' anchors. |
 | `soulanchor.admin.reload` | op | Allows config reloads. |
 | `soulanchor.bypass.cost` | op | Bypasses teleport cost. |
 | `soulanchor.bypass.cooldown` | op | Bypasses cooldown. |
@@ -170,6 +171,9 @@ Important keys:
 | `teleport.echo-shard-cost` | `1` | Echo Shard charge beyond the free-distance threshold. |
 | `teleport.echo-shard-free-distance` | `2000` | Maximum distance that costs no Echo Shard. |
 | `teleport.experience-points-per-required-level` | `8` | Actual XP points charged per required level. |
+| `echo-shard-sources.fishing.base-chance` | `0.01` | Echo Shard fishing chance without Luck of the Sea. |
+| `echo-shard-sources.fishing.luck-bonus-per-level` | `0.0025` | Additional chance per Luck of the Sea level. |
+| `echo-shard-sources.warden.drop-chance` | `0.15` | Chance for a player-killed Warden to drop an Echo Shard. |
 | `teleport.warmup-seconds` | `3` | Warmup duration. |
 | `teleport.cooldown-seconds` | `30` | Cooldown after teleport. |
 | `cross-dimension.level-cost` | `30` | Required level for cross-dimension teleport. |
@@ -185,13 +189,13 @@ mvn clean package
 Maven jar output:
 
 ```text
-target/soul-anchor-1.0.2.jar
+target/soul-anchor-1.0.3.jar
 ```
 
 The local workspace may also contain:
 
 ```text
-target/soul-anchor-1.0.2.jar
+target/soul-anchor-1.0.3.jar
 target/anchor_spawn_point_fixed.zip
 ```
 

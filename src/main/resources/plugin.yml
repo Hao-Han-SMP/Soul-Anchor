@@ -1,5 +1,5 @@
 name: SoulAnchor
-version: 1.0.2
+version: 1.0.3
 main: dev.haohansmp.soulanchor.SoulAnchorPlugin
 api-version: '1.21'
 author: HaoHanSMP
@@ -23,8 +23,6 @@ permissions:
   soulanchor.admin:
     default: op
   soulanchor.admin.give:
-    default: op
-  soulanchor.admin.remove:
     default: op
   soulanchor.admin.reload:
     default: op

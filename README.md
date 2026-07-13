@@ -49,10 +49,12 @@ Mỗi Soul Anchor là một điểm dịch chuyển vật lý. Người chơi ph
 - Điểm đến ưu tiên vị trí đứng cạnh Soul Anchor.
 - Yêu cầu mặc định: `10 level / 1000 block`; quãng đường đến `2.000 block` không tốn Echo Shard.
 - Quãng đường trên `2.000 block` tốn cố định `1 Echo Shard`.
+- Câu cá có `1% + 0,25%` cho mỗi cấp Luck of the Sea để nhận Echo Shard, không giới hạn lượt.
+- Warden do người chơi hạ có `15%` rơi thêm `1 Echo Shard`.
 - XP thực trả: `8 điểm XP` cho mỗi level yêu cầu; level yêu cầu chỉ là điều kiện để dịch chuyển.
 - Khác dimension: yêu cầu `30 level` + `1 Echo Shard`, trừ XP theo cùng công thức.
 - Dữ liệu anchor được lưu tại `plugins/SoulAnchor/anchors.yml`.
-- Bảo vệ anchor khỏi piston, explosion, fluid và người không phải chủ sở hữu.
+- Chỉ người trực tiếp đặt anchor mới có thể phá; người được share và người chơi khác không thể phá.
 - Hỗ trợ resource pack để hiển thị model Soul Anchor riêng.
 
 Ví dụ khi người chơi bắt đầu đúng level yêu cầu và thanh XP đang ở đầu level:
@@ -140,7 +142,6 @@ Alias:
 | `soulanchor.share` | true | Cho phép share anchor của mình cho người chơi khác. |
 | `soulanchor.admin` | op | Quyền admin tổng quát. |
 | `soulanchor.admin.give` | op | Cho phép dùng lệnh give. |
-| `soulanchor.admin.remove` | op | Cho phép admin phá anchor của người khác. |
 | `soulanchor.admin.reload` | op | Cho phép reload config. |
 | `soulanchor.bypass.cost` | op | Bỏ qua chi phí teleport. |
 | `soulanchor.bypass.cooldown` | op | Bỏ qua cooldown. |
@@ -170,6 +171,9 @@ Một số key quan trọng:
 | `teleport.echo-shard-cost` | `1` | Echo Shard tiêu hao khi vượt ngưỡng miễn phí. |
 | `teleport.echo-shard-free-distance` | `2000` | Khoảng cách tối đa không tốn Echo Shard. |
 | `teleport.experience-points-per-required-level` | `8` | Điểm XP thực trả cho mỗi level yêu cầu. |
+| `echo-shard-sources.fishing.base-chance` | `0.01` | Tỉ lệ câu được Echo Shard khi không có Luck of the Sea. |
+| `echo-shard-sources.fishing.luck-bonus-per-level` | `0.0025` | Tỉ lệ cộng thêm cho mỗi cấp Luck of the Sea. |
+| `echo-shard-sources.warden.drop-chance` | `0.15` | Tỉ lệ Warden do người chơi hạ rơi Echo Shard. |
 | `teleport.warmup-seconds` | `3` | Thời gian warmup. |
 | `teleport.cooldown-seconds` | `30` | Cooldown sau teleport. |
 | `cross-dimension.level-cost` | `30` | Level yêu cầu khi teleport khác dimension. |
@@ -185,13 +189,13 @@ mvn clean package
 File jar Maven nằm trong:
 
 ```text
-target/soul-anchor-1.0.2.jar
+target/soul-anchor-1.0.3.jar
 ```
 
 Trong workspace local có thể có thêm:
 
 ```text
-target/soul-anchor-1.0.2.jar
+target/soul-anchor-1.0.3.jar
 target/anchor_spawn_point_fixed.zip
 ```
 

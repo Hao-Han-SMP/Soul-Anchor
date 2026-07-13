@@ -18,8 +18,10 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -34,12 +36,14 @@ import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -73,6 +77,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 public final class SoulAnchorPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
@@ -296,7 +301,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }
         Player player = event.getPlayer();
         boolean owner = anchor.ownerId().equals(player.getUniqueId());
-        if (!(owner && player.hasPermission("soulanchor.break.own")) && !player.hasPermission("soulanchor.admin.remove")) {
+        if (!owner || !player.hasPermission("soulanchor.break.own")) {
             event.setCancelled(true);
             send(player, "anchor-not-owner");
             return;
@@ -382,7 +387,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                 return;
             }
             boolean owner = anchor.ownerId().equals(breaker.getUniqueId());
-            if (!(owner && breaker.hasPermission("soulanchor.break.own")) && !breaker.hasPermission("soulanchor.admin.remove")) {
+            if (!owner || !breaker.hasPermission("soulanchor.break.own")) {
                 send(breaker, "anchor-not-owner");
                 return;
             }
@@ -404,6 +409,50 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         if (warmup != null) {
             warmup.cancel(true);
         }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onFish(PlayerFishEvent event) {
+        if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH
+                || !getConfig().getBoolean("echo-shard-sources.fishing.enabled", true)
+                || !(event.getCaught() instanceof Item caughtItem)) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        ItemStack rod = event.getHand() == EquipmentSlot.OFF_HAND
+                ? player.getInventory().getItemInOffHand()
+                : player.getInventory().getItemInMainHand();
+        int luckLevel = rod.getEnchantmentLevel(Enchantment.LUCK_OF_THE_SEA);
+        double baseChance = getConfig().getDouble("echo-shard-sources.fishing.base-chance", 0.01D);
+        double luckBonus = getConfig().getDouble("echo-shard-sources.fishing.luck-bonus-per-level", 0.0025D);
+        double chance = Math.max(0D, Math.min(1D, baseChance + luckLevel * luckBonus));
+        if (ThreadLocalRandom.current().nextDouble() >= chance) {
+            return;
+        }
+
+        caughtItem.setItemStack(new ItemStack(Material.ECHO_SHARD));
+        send(player, "echo-shard-fished", "{chance}", formatPercent(chance));
+        player.playSound(player.getLocation(), Sound.BLOCK_SCULK_CATALYST_BLOOM, 0.8F, 1.2F);
+    }
+
+    @EventHandler
+    public void onWardenDeath(EntityDeathEvent event) {
+        if (event.getEntity().getType() != org.bukkit.entity.EntityType.WARDEN
+                || !getConfig().getBoolean("echo-shard-sources.warden.enabled", true)
+                || event.getEntity().getKiller() == null) {
+            return;
+        }
+
+        double chance = Math.max(0D, Math.min(1D,
+                getConfig().getDouble("echo-shard-sources.warden.drop-chance", 0.15D)));
+        if (ThreadLocalRandom.current().nextDouble() >= chance) {
+            return;
+        }
+
+        int amount = Math.max(1, getConfig().getInt("echo-shard-sources.warden.amount", 1));
+        event.getDrops().add(new ItemStack(Material.ECHO_SHARD, amount));
+        send(event.getEntity().getKiller(), "echo-shard-warden", "{amount}", String.valueOf(amount));
     }
 
     @EventHandler
@@ -1312,6 +1361,14 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         } catch (NumberFormatException ignored) {
             return fallback;
         }
+    }
+
+    private String formatPercent(double chance) {
+        double percent = chance * 100D;
+        if (percent == Math.rint(percent)) {
+            return String.format(Locale.ROOT, "%.0f%%", percent);
+        }
+        return String.format(Locale.ROOT, "%.2f%%", percent);
     }
 
     private String sanitizeName(String input) {

@@ -44,6 +44,16 @@ cross-dimension:
   level-cost: 30
   echo-shard-cost: 1
 
+echo-shard-sources:
+  fishing:
+    enabled: true
+    base-chance: 0.01
+    luck-bonus-per-level: 0.0025
+  warden:
+    enabled: true
+    drop-chance: 0.15
+    amount: 1
+
 safe-location:
   horizontal-radius: 3
   vertical-radius: 4
