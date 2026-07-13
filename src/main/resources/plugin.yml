@@ -7,7 +7,7 @@ description: Personal Soul Anchor teleport network.
 commands:
   soulanchor:
     description: Manage Soul Anchors.
-    usage: /soulanchor <give|list|rename|share|remove|reload>
+    usage: /soulanchor <give|list|rename|share|reload>
     aliases: [sa]
 permissions:
   soulanchor.use:

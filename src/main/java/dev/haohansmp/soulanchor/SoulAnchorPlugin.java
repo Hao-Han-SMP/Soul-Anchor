@@ -426,9 +426,6 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         if (sub.equals("share")) {
             return commandShare(sender, args);
         }
-        if (sub.equals("remove")) {
-            return commandRemove(sender, args);
-        }
         if (sub.equals("reload")) {
             if (!sender.hasPermission("soulanchor.admin.reload")) {
                 send(sender, "no-permission");
@@ -440,19 +437,19 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             send(sender, "reloaded");
             return true;
         }
-        sender.sendMessage(color("&3SoulAnchor &7commands: &f/soulanchor give|list|rename|share|remove|reload"));
+        sender.sendMessage(color("&3SoulAnchor &7commands: &f/soulanchor give|list|rename|share|reload"));
         return true;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return StringUtil.copyPartialMatches(args[0], List.of("give", "list", "rename", "share", "remove", "reload"), new ArrayList<>());
+            return StringUtil.copyPartialMatches(args[0], List.of("give", "list", "rename", "share", "reload"), new ArrayList<>());
         }
         if (args.length == 2 && List.of("give", "list").contains(args[0].toLowerCase(Locale.ROOT))) {
             return null;
         }
-        if (sender instanceof Player player && args.length == 2 && List.of("rename", "share", "remove").contains(args[0].toLowerCase(Locale.ROOT))) {
+        if (sender instanceof Player player && args.length == 2 && List.of("rename", "share").contains(args[0].toLowerCase(Locale.ROOT))) {
             return StringUtil.copyPartialMatches(args[1], ownedAnchors(player.getUniqueId()).stream().map(Anchor::name).toList(), new ArrayList<>());
         }
         if (sender instanceof Player && args.length >= 3 && args[0].equalsIgnoreCase("share")) {
@@ -513,39 +510,25 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             player.sendMessage(color("&cUsage: /soulanchor rename <anchor> <new-name>"));
             return true;
         }
-        Anchor anchor = findOwnedAnchor(player.getUniqueId(), args[1]).orElse(null);
+        Anchor anchor = null;
+        int newNameStart = -1;
+        for (int split = args.length - 1; split >= 2; split--) {
+            String anchorQuery = String.join(" ", List.of(args).subList(1, split));
+            anchor = findOwnedAnchor(player.getUniqueId(), anchorQuery).orElse(null);
+            if (anchor != null) {
+                newNameStart = split;
+                break;
+            }
+        }
         if (anchor == null) {
             send(player, "not-anchor");
             return true;
         }
-        String name = sanitizeName(String.join(" ", List.of(args).subList(2, args.length)));
+        String name = sanitizeName(String.join(" ", List.of(args).subList(newNameStart, args.length)));
         Anchor renamed = anchor.withName(name);
         anchorsById.put(renamed.id(), renamed);
         saveAnchors();
         send(player, "anchor-renamed", "{name}", renamed.name());
-        return true;
-    }
-
-    private boolean commandRemove(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player player)) {
-            send(sender, "player-only");
-            return true;
-        }
-        if (args.length < 2) {
-            player.sendMessage(color("&cUsage: /soulanchor remove <anchor>"));
-            return true;
-        }
-        Anchor anchor = findOwnedAnchor(player.getUniqueId(), args[1]).orElse(null);
-        if (anchor == null) {
-            send(player, "not-anchor");
-            return true;
-        }
-        removeAnchor(anchor.id());
-        cancelWarmupsTouching(anchor.id());
-        if (anchor.location().getBlock().getType() == getAnchorBlockMaterial()) {
-            anchor.location().getBlock().setType(Material.AIR, false);
-        }
-        send(player, "anchor-broken", "{name}", anchor.name());
         return true;
     }
 

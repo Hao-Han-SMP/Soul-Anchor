@@ -118,9 +118,8 @@ Teleport is cancelled if the player moves too far, takes damage, deals damage, d
 | `/soulanchor list` | Shows your anchor list. |
 | `/soulanchor list <player>` | Lets admins view another player's anchors. |
 | `/soulanchor give <player> [amount]` | Gives Soul Anchors to a player. |
-| `/soulanchor rename <anchor> <new-name>` | Renames one of your anchors. |
+| `/soulanchor rename <anchor> <new-name>` | Renames an owned anchor; anchor names and new names may contain spaces. |
 | `/soulanchor share <anchor> <player>` | Shares your anchor with an online player. Anchor names may contain spaces. |
-| `/soulanchor remove <anchor>` | Removes one of your anchors. |
 | `/soulanchor reload` | Reloads config and recipe. |
 
 Alias:
@@ -140,7 +139,7 @@ Alias:
 | `soulanchor.share` | true | Allows sharing owned anchors with other players. |
 | `soulanchor.admin` | op | General admin permission. |
 | `soulanchor.admin.give` | op | Allows the give command. |
-| `soulanchor.admin.remove` | op | Allows removing or breaking other players' anchors. |
+| `soulanchor.admin.remove` | op | Allows admins to break other players' anchors. |
 | `soulanchor.admin.reload` | op | Allows config reloads. |
 | `soulanchor.bypass.cost` | op | Bypasses teleport cost. |
 | `soulanchor.bypass.cooldown` | op | Bypasses cooldown. |

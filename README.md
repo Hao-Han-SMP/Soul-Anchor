@@ -118,9 +118,8 @@ Teleport sẽ bị hủy nếu người chơi di chuyển quá xa, nhận damage
 | `/soulanchor list` | Hiển thị danh sách anchor của bạn. |
 | `/soulanchor list <player>` | Admin xem anchor của người chơi khác. |
 | `/soulanchor give <player> [amount]` | Trao Soul Anchor cho người chơi. |
-| `/soulanchor rename <anchor> <new-name>` | Đổi tên anchor của bạn. |
+| `/soulanchor rename <anchor> <new-name>` | Đổi tên anchor của bạn; hỗ trợ tên anchor và tên mới có khoảng trắng. |
 | `/soulanchor share <anchor> <player>` | Share anchor của bạn cho một người chơi đang online. Tên anchor có thể chứa khoảng trắng. |
-| `/soulanchor remove <anchor>` | Xóa anchor của bạn. |
 | `/soulanchor reload` | Reload config và recipe. |
 
 Alias:
@@ -140,7 +139,7 @@ Alias:
 | `soulanchor.share` | true | Cho phép share anchor của mình cho người chơi khác. |
 | `soulanchor.admin` | op | Quyền admin tổng quát. |
 | `soulanchor.admin.give` | op | Cho phép dùng lệnh give. |
-| `soulanchor.admin.remove` | op | Cho phép xóa hoặc phá anchor của người khác. |
+| `soulanchor.admin.remove` | op | Cho phép admin phá anchor của người khác. |
 | `soulanchor.admin.reload` | op | Cho phép reload config. |
 | `soulanchor.bypass.cost` | op | Bỏ qua chi phí teleport. |
 | `soulanchor.bypass.cooldown` | op | Bỏ qua cooldown. |
