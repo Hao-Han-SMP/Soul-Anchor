@@ -57,6 +57,9 @@ import org.bukkit.util.StringUtil;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -99,7 +102,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         migrateLegacyDisplayMaterial();
         saveResource("messages.yml", false);
         messagesFile = new File(getDataFolder(), "messages.yml");
-        messages = YamlConfiguration.loadConfiguration(messagesFile);
+        loadMessages();
         anchorsFile = new File(getDataFolder(), "anchors.yml");
         anchorsConfig = YamlConfiguration.loadConfiguration(anchorsFile);
 
@@ -173,7 +176,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }
 
         int limit = getAnchorLimit(player);
-        if (limit >= 0 && ownedAnchors(player.getUniqueId()).size() >= limit) {
+        if (limit >= 0 && accessibleAnchors(player.getUniqueId()).size() >= limit) {
             event.setCancelled(true);
             send(player, "anchor-limit", "{limit}", String.valueOf(limit));
             return;
@@ -183,7 +186,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         location.getBlock().setType(getAnchorBlockMaterial(), false);
 
         String name = nextDefaultName(player.getUniqueId());
-        Anchor anchor = new Anchor(UUID.randomUUID(), player.getUniqueId(), name, location, 0F, 0F, Instant.now().toEpochMilli(), null, null);
+        Anchor anchor = new Anchor(UUID.randomUUID(), player.getUniqueId(), name, location, 0F, 0F, Instant.now().toEpochMilli(), Set.of(), null, null);
         anchor = spawnVisuals(anchor);
         anchorsById.put(anchor.id(), anchor);
         anchorIdsByLocation.put(locationKey(anchor.location()), anchor.id());
@@ -209,7 +212,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             send(player, "no-permission");
             return;
         }
-        if (!anchor.ownerId().equals(player.getUniqueId()) && !player.hasPermission("soulanchor.admin")) {
+        if (!canAccessAnchor(player.getUniqueId(), anchor) && !player.hasPermission("soulanchor.admin")) {
             send(player, "anchor-not-owner");
             return;
         }
@@ -229,7 +232,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             send(player, "no-permission");
             return;
         }
-        if (!anchor.ownerId().equals(player.getUniqueId()) && !player.hasPermission("soulanchor.admin")) {
+        if (!canAccessAnchor(player.getUniqueId(), anchor) && !player.hasPermission("soulanchor.admin")) {
             send(player, "anchor-not-owner");
             return;
         }
@@ -420,6 +423,9 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         if (sub.equals("rename")) {
             return commandRename(sender, args);
         }
+        if (sub.equals("share")) {
+            return commandShare(sender, args);
+        }
         if (sub.equals("remove")) {
             return commandRemove(sender, args);
         }
@@ -429,25 +435,28 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                 return true;
             }
             reloadConfig();
-            messages = YamlConfiguration.loadConfiguration(messagesFile);
+            loadMessages();
             registerRecipe();
             send(sender, "reloaded");
             return true;
         }
-        sender.sendMessage(color("&3SoulAnchor &7commands: &f/soulanchor give|list|rename|remove|reload"));
+        sender.sendMessage(color("&3SoulAnchor &7commands: &f/soulanchor give|list|rename|share|remove|reload"));
         return true;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return StringUtil.copyPartialMatches(args[0], List.of("give", "list", "rename", "remove", "reload"), new ArrayList<>());
+            return StringUtil.copyPartialMatches(args[0], List.of("give", "list", "rename", "share", "remove", "reload"), new ArrayList<>());
         }
         if (args.length == 2 && List.of("give", "list").contains(args[0].toLowerCase(Locale.ROOT))) {
             return null;
         }
-        if (sender instanceof Player player && args.length == 2 && List.of("rename", "remove").contains(args[0].toLowerCase(Locale.ROOT))) {
+        if (sender instanceof Player player && args.length == 2 && List.of("rename", "share", "remove").contains(args[0].toLowerCase(Locale.ROOT))) {
             return StringUtil.copyPartialMatches(args[1], ownedAnchors(player.getUniqueId()).stream().map(Anchor::name).toList(), new ArrayList<>());
+        }
+        if (sender instanceof Player && args.length >= 3 && args[0].equalsIgnoreCase("share")) {
+            return StringUtil.copyPartialMatches(args[args.length - 1], Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), new ArrayList<>());
         }
         return List.of();
     }
@@ -540,16 +549,67 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         return true;
     }
 
+    private boolean commandShare(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player player)) {
+            send(sender, "player-only");
+            return true;
+        }
+        if (!player.hasPermission("soulanchor.share")) {
+            send(player, "no-permission");
+            return true;
+        }
+        if (args.length < 3) {
+            player.sendMessage(color("&cUsage: /soulanchor share <anchor> <player>"));
+            return true;
+        }
+
+        String targetName = args[args.length - 1];
+        Player target = Bukkit.getPlayerExact(targetName);
+        if (target == null) {
+            send(player, "player-not-found");
+            return true;
+        }
+        if (target.getUniqueId().equals(player.getUniqueId())) {
+            send(player, "share-self");
+            return true;
+        }
+
+        String anchorQuery = String.join(" ", List.of(args).subList(1, args.length - 1));
+        Anchor anchor = findOwnedAnchor(player.getUniqueId(), anchorQuery).orElse(null);
+        if (anchor == null) {
+            send(player, "not-anchor");
+            return true;
+        }
+        if (anchor.sharedWith().contains(target.getUniqueId())) {
+            send(player, "anchor-already-shared", "{anchor}", anchor.name(), "{player}", target.getName());
+            return true;
+        }
+
+        int limit = getAnchorLimit(target);
+        if (limit >= 0 && accessibleAnchors(target.getUniqueId()).size() >= limit) {
+            send(player, "share-target-limit", "{player}", target.getName(), "{limit}", String.valueOf(limit));
+            return true;
+        }
+
+        Anchor shared = anchor.withSharedPlayer(target.getUniqueId());
+        anchorsById.put(shared.id(), shared);
+        saveAnchors();
+        send(player, "anchor-shared", "{anchor}", shared.name(), "{player}", target.getName());
+        send(target, "anchor-shared-received", "{anchor}", shared.name(), "{player}", player.getName());
+        return true;
+    }
+
     private void listAnchors(CommandSender sender, Player owner) {
-        List<Anchor> anchors = ownedAnchors(owner.getUniqueId());
-        sender.sendMessage(color("&3Soul Anchors of &f" + owner.getName() + "&7 (" + anchors.size() + "/" + getAnchorLimit(owner) + ")"));
+        List<Anchor> anchors = accessibleAnchors(owner.getUniqueId());
+        sender.sendMessage(color("&3Soul Anchors available to &f" + owner.getName() + "&7 (" + anchors.size() + "/" + getAnchorLimit(owner) + ")"));
         if (anchors.isEmpty()) {
             sender.sendMessage(color("&7No Soul Anchors yet."));
             return;
         }
         for (Anchor anchor : anchors) {
             Location loc = anchor.location();
-            sender.sendMessage(color("&b- &f" + anchor.name() + " &7" + loc.getWorld().getName() + " " + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ()));
+            String access = anchor.ownerId().equals(owner.getUniqueId()) ? "" : " &d[shared]";
+            sender.sendMessage(color("&b- &f" + anchor.name() + access + " &7" + loc.getWorld().getName() + " " + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ()));
         }
     }
 
@@ -644,7 +704,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         if (source == null || target == null || source.id().equals(target.id())) {
             return Validation.fail("teleport-failed");
         }
-        if (!target.ownerId().equals(player.getUniqueId()) && !player.hasPermission("soulanchor.admin")) {
+        if ((!canAccessAnchor(player.getUniqueId(), source) || !canAccessAnchor(player.getUniqueId(), target))
+                && !player.hasPermission("soulanchor.admin")) {
             return Validation.fail("anchor-not-owner");
         }
         if (!isAnchorStillPlaced(source) || !isAnchorStillPlaced(target)) {
@@ -684,7 +745,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             inventory.setItem(i, namedItem(Material.GRAY_STAINED_GLASS_PANE, " "));
         }
 
-        List<Anchor> anchors = ownedAnchors(player.getUniqueId());
+        List<Anchor> anchors = accessibleAnchors(player.getUniqueId());
         int[] slots = {11, 13, 15};
         for (int i = 0; i < Math.min(slots.length, anchors.size()); i++) {
             Anchor target = anchors.get(i);
@@ -692,6 +753,9 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             boolean current = source.id().equals(target.id());
             List<String> lore = new ArrayList<>();
             Location loc = target.location();
+            if (!target.ownerId().equals(player.getUniqueId())) {
+                lore.add("&dShared with you");
+            }
             lore.add("&7World: &f" + loc.getWorld().getName());
             lore.add("&7Coords: &f" + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ());
             if (current) {
@@ -710,7 +774,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             }
             inventory.setItem(slots[i], icon);
         }
-        inventory.setItem(4, namedItem(Material.ECHO_SHARD, "&bNetwork", List.of("&7Anchors: &f" + anchors.size() + "/" + getAnchorLimit(player), "&7Access: &fOwner only")));
+        inventory.setItem(4, namedItem(Material.ECHO_SHARD, "&bNetwork", List.of("&7Anchors: &f" + anchors.size() + "/" + getAnchorLimit(player), "&7Access: &fOwned + shared")));
         inventory.setItem(22, namedItem(Material.BARRIER, "&cClose"));
         player.openInventory(inventory);
     }
@@ -833,6 +897,10 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                 continue;
             }
             Location location = new Location(world, node.getInt("x"), node.getInt("y"), node.getInt("z"));
+            Set<UUID> sharedWith = node.getStringList("shared-with").stream()
+                    .map(this::readUuid)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toUnmodifiableSet());
             Anchor anchor = new Anchor(
                     UUID.fromString(key),
                     UUID.fromString(node.getString("owner")),
@@ -841,6 +909,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                     (float) node.getDouble("yaw", 0D),
                     (float) node.getDouble("pitch", 0D),
                     node.getLong("created-at", System.currentTimeMillis()),
+                    sharedWith,
                     readUuid(node.getString("visual-uuid")),
                     readUuid(node.getString("interaction-uuid"))
             );
@@ -870,6 +939,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             anchorsConfig.set(path + ".yaw", anchor.yaw());
             anchorsConfig.set(path + ".pitch", anchor.pitch());
             anchorsConfig.set(path + ".created-at", anchor.createdAt());
+            anchorsConfig.set(path + ".shared-with", anchor.sharedWith().stream().map(UUID::toString).sorted().toList());
             anchorsConfig.set(path + ".visual-uuid", anchor.visualId() == null ? null : anchor.visualId().toString());
             anchorsConfig.set(path + ".interaction-uuid", anchor.interactionId() == null ? null : anchor.interactionId().toString());
         }
@@ -918,6 +988,18 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                 .filter(anchor -> anchor.ownerId().equals(ownerId))
                 .sorted(Comparator.comparingLong(Anchor::createdAt))
                 .collect(Collectors.toList());
+    }
+
+    private List<Anchor> accessibleAnchors(UUID playerId) {
+        return anchorsById.values().stream()
+                .filter(anchor -> canAccessAnchor(playerId, anchor))
+                .sorted(Comparator.comparing((Anchor anchor) -> !anchor.ownerId().equals(playerId))
+                        .thenComparingLong(Anchor::createdAt))
+                .collect(Collectors.toList());
+    }
+
+    private boolean canAccessAnchor(UUID playerId, Anchor anchor) {
+        return anchor.ownerId().equals(playerId) || anchor.sharedWith().contains(playerId);
     }
 
     private Optional<Anchor> findOwnedAnchor(UUID ownerId, String nameOrId) {
@@ -1126,7 +1208,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             interactionId = interaction.getUniqueId();
         }
 
-        return new Anchor(anchor.id(), anchor.ownerId(), anchor.name(), anchor.location(), anchor.yaw(), anchor.pitch(), anchor.createdAt(), visualId, interactionId);
+        return new Anchor(anchor.id(), anchor.ownerId(), anchor.name(), anchor.location(), anchor.yaw(), anchor.pitch(), anchor.createdAt(), anchor.sharedWith(), visualId, interactionId);
     }
 
     private void configureAnchorDisplay(ItemDisplay entity, Anchor anchor) {
@@ -1240,6 +1322,20 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         return ChatColor.translateAlternateColorCodes('&', input == null ? "" : input);
     }
 
+    private void loadMessages() {
+        messages = YamlConfiguration.loadConfiguration(messagesFile);
+        try (InputStream stream = getResource("messages.yml")) {
+            if (stream == null) {
+                return;
+            }
+            YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
+                    new InputStreamReader(stream, StandardCharsets.UTF_8));
+            messages.setDefaults(defaults);
+        } catch (IOException exception) {
+            getLogger().warning("Could not load default messages: " + exception.getMessage());
+        }
+    }
+
     private void send(CommandSender sender, String key, String... replacements) {
         String text = messages.getString(key, key);
         for (int i = 0; i + 1 < replacements.length; i += 2) {
@@ -1267,9 +1363,19 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }.runTaskTimer(this, interval, interval);
     }
 
-    private record Anchor(UUID id, UUID ownerId, String name, Location location, float yaw, float pitch, long createdAt, UUID visualId, UUID interactionId) {
+    private record Anchor(UUID id, UUID ownerId, String name, Location location, float yaw, float pitch, long createdAt, Set<UUID> sharedWith, UUID visualId, UUID interactionId) {
+        Anchor {
+            sharedWith = Set.copyOf(sharedWith);
+        }
+
         Anchor withName(String newName) {
-            return new Anchor(id, ownerId, newName, location, yaw, pitch, createdAt, visualId, interactionId);
+            return new Anchor(id, ownerId, newName, location, yaw, pitch, createdAt, sharedWith, visualId, interactionId);
+        }
+
+        Anchor withSharedPlayer(UUID playerId) {
+            Set<UUID> updated = new HashSet<>(sharedWith);
+            updated.add(playerId);
+            return new Anchor(id, ownerId, name, location, yaw, pitch, createdAt, updated, visualId, interactionId);
         }
     }
 

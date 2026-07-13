@@ -43,6 +43,8 @@ Each Soul Anchor is a physical teleport point. Players must interact with an anc
 
 - Default limit of `3` Soul Anchors per player.
 - 27-slot GUI with the three anchor positions centered.
+- Anchor owners can grant teleport access with `/soulanchor share <anchor> <player>`.
+- Shared anchors count toward the recipient's same limit; by default, owned and shared anchors combined cannot exceed `3`.
 - Teleport warmup, cooldown, and safe-location checks.
 - Destination search prefers a safe block beside the target Soul Anchor.
 - Default requirement: `10 levels / 1000 blocks` + a fixed `1 Echo Shard`.
@@ -117,6 +119,7 @@ Teleport is cancelled if the player moves too far, takes damage, deals damage, d
 | `/soulanchor list <player>` | Lets admins view another player's anchors. |
 | `/soulanchor give <player> [amount]` | Gives Soul Anchors to a player. |
 | `/soulanchor rename <anchor> <new-name>` | Renames one of your anchors. |
+| `/soulanchor share <anchor> <player>` | Shares your anchor with an online player. Anchor names may contain spaces. |
 | `/soulanchor remove <anchor>` | Removes one of your anchors. |
 | `/soulanchor reload` | Reloads config and recipe. |
 
@@ -134,6 +137,7 @@ Alias:
 | `soulanchor.place` | true | Allows placing Soul Anchors. |
 | `soulanchor.break.own` | true | Allows breaking owned anchors. |
 | `soulanchor.rename` | true | Allows renaming anchors. |
+| `soulanchor.share` | true | Allows sharing owned anchors with other players. |
 | `soulanchor.admin` | op | General admin permission. |
 | `soulanchor.admin.give` | op | Allows the give command. |
 | `soulanchor.admin.remove` | op | Allows removing or breaking other players' anchors. |

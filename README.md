@@ -43,6 +43,8 @@ Mỗi Soul Anchor là một điểm dịch chuyển vật lý. Người chơi ph
 
 - Giới hạn mặc định `3` Soul Anchor mỗi người chơi.
 - GUI 27 slot, 3 vị trí anchor được căn giữa.
+- Chủ anchor có thể dùng `/soulanchor share <anchor> <player>` để chia sẻ quyền dịch chuyển.
+- Anchor được share tính vào cùng giới hạn tối đa của người nhận; mặc định tổng anchor sở hữu và được share không vượt quá `3`.
 - Teleport có warmup, cooldown và kiểm tra vị trí an toàn.
 - Điểm đến ưu tiên vị trí đứng cạnh Soul Anchor.
 - Yêu cầu mặc định: `10 level / 1000 block` + cố định `1 Echo Shard`.
@@ -117,6 +119,7 @@ Teleport sẽ bị hủy nếu người chơi di chuyển quá xa, nhận damage
 | `/soulanchor list <player>` | Admin xem anchor của người chơi khác. |
 | `/soulanchor give <player> [amount]` | Trao Soul Anchor cho người chơi. |
 | `/soulanchor rename <anchor> <new-name>` | Đổi tên anchor của bạn. |
+| `/soulanchor share <anchor> <player>` | Share anchor của bạn cho một người chơi đang online. Tên anchor có thể chứa khoảng trắng. |
 | `/soulanchor remove <anchor>` | Xóa anchor của bạn. |
 | `/soulanchor reload` | Reload config và recipe. |
 
@@ -134,6 +137,7 @@ Alias:
 | `soulanchor.place` | true | Cho phép đặt Soul Anchor. |
 | `soulanchor.break.own` | true | Cho phép phá anchor của chính mình. |
 | `soulanchor.rename` | true | Cho phép đổi tên anchor. |
+| `soulanchor.share` | true | Cho phép share anchor của mình cho người chơi khác. |
 | `soulanchor.admin` | op | Quyền admin tổng quát. |
 | `soulanchor.admin.give` | op | Cho phép dùng lệnh give. |
 | `soulanchor.admin.remove` | op | Cho phép xóa hoặc phá anchor của người khác. |

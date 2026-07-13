@@ -7,7 +7,7 @@ description: Personal Soul Anchor teleport network.
 commands:
   soulanchor:
     description: Manage Soul Anchors.
-    usage: /soulanchor <give|list|rename|remove|reload>
+    usage: /soulanchor <give|list|rename|share|remove|reload>
     aliases: [sa]
 permissions:
   soulanchor.use:
@@ -17,6 +17,8 @@ permissions:
   soulanchor.break.own:
     default: true
   soulanchor.rename:
+    default: true
+  soulanchor.share:
     default: true
   soulanchor.admin:
     default: op
