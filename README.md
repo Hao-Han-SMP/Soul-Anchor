@@ -45,8 +45,9 @@ Mỗi Soul Anchor là một điểm dịch chuyển vật lý. Người chơi ph
 - GUI 27 slot, 3 vị trí anchor được căn giữa.
 - Teleport có warmup, cooldown và kiểm tra vị trí an toàn.
 - Điểm đến ưu tiên vị trí đứng cạnh Soul Anchor.
-- Chi phí mặc định: `10 level / 1000 block` + `1 Echo Shard`.
-- Khác dimension: `30 level` + `1 Echo Shard`.
+- Yêu cầu mặc định: `10 level / 1000 block` + cố định `1 Echo Shard`.
+- XP thực trả: `8 điểm XP` cho mỗi level yêu cầu; level yêu cầu chỉ là điều kiện để dịch chuyển.
+- Khác dimension: yêu cầu `30 level` + `1 Echo Shard`, trừ XP theo cùng công thức.
 - Dữ liệu anchor được lưu tại `plugins/SoulAnchor/anchors.yml`.
 - Bảo vệ anchor khỏi piston, explosion, fluid và người không phải chủ sở hữu.
 - Hỗ trợ resource pack để hiển thị model Soul Anchor riêng.
@@ -151,9 +152,10 @@ Một số key quan trọng:
 | `distance.blocks-per-tier` | `1000` | Số block mỗi tier chi phí. |
 | `distance.levels-per-tier` | `10` | Số level mỗi tier. |
 | `teleport.echo-shard-cost` | `1` | Echo Shard tiêu hao mỗi lần teleport. |
+| `teleport.experience-points-per-required-level` | `8` | Điểm XP thực trả cho mỗi level yêu cầu. |
 | `teleport.warmup-seconds` | `3` | Thời gian warmup. |
 | `teleport.cooldown-seconds` | `30` | Cooldown sau teleport. |
-| `cross-dimension.level-cost` | `30` | Chi phí level khi teleport khác dimension. |
+| `cross-dimension.level-cost` | `30` | Level yêu cầu khi teleport khác dimension. |
 
 ## Build Từ Mã Nguồn
 
@@ -166,13 +168,13 @@ mvn clean package
 File jar Maven nằm trong:
 
 ```text
-target/soul-anchor-1.0.1.jar
+target/soul-anchor-1.0.2.jar
 ```
 
 Trong workspace local có thể có thêm:
 
 ```text
-target/SoulAnchor-1.0.1.jar
+target/soul-anchor-1.0.2.jar
 target/anchor_spawn_point_fixed.zip
 ```
 

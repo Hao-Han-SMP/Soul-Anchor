@@ -17,7 +17,8 @@ item:
     - ""
     - "&fID: &7haohansmp:soul_anchor"
     - "&fLimit: &b3 Soul Anchors"
-    - "&fCost: &a10 levels / 1000 blocks"
+    - "&fRequirement: &a10 levels / 1000 blocks"
+    - "&fXP charge: &e8 points / required level"
     - "&fPlus: &b1 Echo Shard"
 
 recipe:
@@ -31,6 +32,8 @@ distance:
 
 teleport:
   echo-shard-cost: 1
+  # The level cost is only a requirement. Successful teleports charge raw XP points instead.
+  experience-points-per-required-level: 8
   warmup-seconds: 3
   cooldown-seconds: 30
   movement-tolerance: 0.5

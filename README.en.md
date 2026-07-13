@@ -45,8 +45,9 @@ Each Soul Anchor is a physical teleport point. Players must interact with an anc
 - 27-slot GUI with the three anchor positions centered.
 - Teleport warmup, cooldown, and safe-location checks.
 - Destination search prefers a safe block beside the target Soul Anchor.
-- Default cost: `10 levels / 1000 blocks` + `1 Echo Shard`.
-- Cross-dimension cost: `30 levels` + `1 Echo Shard`.
+- Default requirement: `10 levels / 1000 blocks` + a fixed `1 Echo Shard`.
+- Actual XP charge: `8 XP points` per required level; required levels are only an eligibility threshold.
+- Cross-dimension travel requires `30 levels` + `1 Echo Shard` and uses the same XP charge formula.
 - Anchor data persists in `plugins/SoulAnchor/anchors.yml`.
 - Protection against pistons, explosions, fluids, and non-owner breaking.
 - Resource pack support for a custom Soul Anchor model.
@@ -151,9 +152,10 @@ Important keys:
 | `distance.blocks-per-tier` | `1000` | Blocks per cost tier. |
 | `distance.levels-per-tier` | `10` | Levels per tier. |
 | `teleport.echo-shard-cost` | `1` | Echo Shard cost per teleport. |
+| `teleport.experience-points-per-required-level` | `8` | Actual XP points charged per required level. |
 | `teleport.warmup-seconds` | `3` | Warmup duration. |
 | `teleport.cooldown-seconds` | `30` | Cooldown after teleport. |
-| `cross-dimension.level-cost` | `30` | Level cost for cross-dimension teleport. |
+| `cross-dimension.level-cost` | `30` | Required level for cross-dimension teleport. |
 
 ## Build From Source
 
@@ -166,13 +168,13 @@ mvn clean package
 Maven jar output:
 
 ```text
-target/soul-anchor-1.0.1.jar
+target/soul-anchor-1.0.2.jar
 ```
 
 The local workspace may also contain:
 
 ```text
-target/SoulAnchor-1.0.1.jar
+target/soul-anchor-1.0.2.jar
 target/anchor_spawn_point_fixed.zip
 ```
 

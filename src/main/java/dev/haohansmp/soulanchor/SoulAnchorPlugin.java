@@ -618,14 +618,14 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
 
         if (!player.hasPermission("soulanchor.bypass.cost")) {
             removeEchoShards(player, cost.shards());
-            player.giveExpLevels(-cost.levels());
+            player.giveExp(-cost.experiencePoints());
         }
 
         boolean teleported = player.teleport(destination);
         if (!teleported) {
             if (!player.hasPermission("soulanchor.bypass.cost")) {
                 player.getInventory().addItem(new ItemStack(Material.ECHO_SHARD, cost.shards()));
-                player.giveExpLevels(cost.levels());
+                player.giveExp(cost.experiencePoints());
             }
             send(player, "teleport-failed");
             return;
@@ -659,8 +659,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
 
         Cost cost = calculateCost(source.location(), target.location());
         if (!player.hasPermission("soulanchor.bypass.cost")) {
-            if (player.getLevel() < cost.levels()) {
-                return Validation.fail("not-enough-levels", "{required}", String.valueOf(cost.levels()), "{current}", String.valueOf(player.getLevel()));
+            if (player.getLevel() < cost.requiredLevels()) {
+                return Validation.fail("not-enough-levels", "{required}", String.valueOf(cost.requiredLevels()), "{current}", String.valueOf(player.getLevel()));
             }
             if (countEchoShards(player) < cost.shards()) {
                 return Validation.fail("not-enough-shards", "{amount}", String.valueOf(cost.shards()));
@@ -700,7 +700,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             } else {
                 lore.add("&7Distance: &f" + formatDistance(source.location(), target.location()) + " blocks");
                 lore.add("");
-                lore.add("&7Cost: &a" + cost.levels() + " levels &7+ &b" + cost.shards() + " Echo Shard");
+                lore.add("&7Requires: &a" + cost.requiredLevels() + " levels &7+ &b" + cost.shards() + " Echo Shard");
+                lore.add("&7XP charged: &e" + cost.experiencePoints() + " points");
                 lore.add("&fClick to teleport");
             }
             ItemStack icon = namedItem(current ? Material.LODESTONE : Material.RESPAWN_ANCHOR, "&b" + target.name(), lore);
@@ -956,20 +957,23 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
     }
 
     private Cost calculateCost(Location source, Location target) {
+        int requiredLevels;
         if (!sameWorld(source, target)) {
-            return new Cost(
-                    getConfig().getInt("cross-dimension.level-cost", 30),
-                    getConfig().getInt("cross-dimension.echo-shard-cost", 1)
-            );
+            requiredLevels = Math.max(0, getConfig().getInt("cross-dimension.level-cost", 30));
+        } else {
+            double dx = target.getX() - source.getX();
+            double dz = target.getZ() - source.getZ();
+            double distance = Math.sqrt(dx * dx + dz * dz);
+            int blocksPerTier = Math.max(1, getConfig().getInt("distance.blocks-per-tier", 1000));
+            int levelsPerTier = Math.max(1, getConfig().getInt("distance.levels-per-tier", 10));
+            int minCost = Math.max(0, getConfig().getInt("distance.minimum-level-cost", 10));
+            requiredLevels = Math.max(minCost, (int) Math.ceil(distance / blocksPerTier) * levelsPerTier);
         }
-        double dx = target.getX() - source.getX();
-        double dz = target.getZ() - source.getZ();
-        double distance = Math.sqrt(dx * dx + dz * dz);
-        int blocksPerTier = Math.max(1, getConfig().getInt("distance.blocks-per-tier", 1000));
-        int levelsPerTier = Math.max(1, getConfig().getInt("distance.levels-per-tier", 10));
-        int minCost = Math.max(0, getConfig().getInt("distance.minimum-level-cost", 10));
-        int levels = Math.max(minCost, (int) Math.ceil(distance / blocksPerTier) * levelsPerTier);
-        return new Cost(levels, getConfig().getInt("teleport.echo-shard-cost", 1));
+
+        int pointsPerRequiredLevel = Math.max(0, getConfig().getInt("teleport.experience-points-per-required-level", 8));
+        int experiencePoints = (int) Math.min(Integer.MAX_VALUE, (long) requiredLevels * pointsPerRequiredLevel);
+        int shards = Math.max(0, getConfig().getInt("teleport.echo-shard-cost", 1));
+        return new Cost(requiredLevels, experiencePoints, shards);
     }
 
     private String formatDistance(Location source, Location target) {
@@ -1018,11 +1022,17 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         int baseZ = anchorLocation.getBlockZ();
 
         for (int dy = 0; dy <= vertical; dy++) {
-            for (int radius = 0; radius <= horizontal; radius++) {
-                for (int x = baseX - radius; x <= baseX + radius; x++) {
-                    for (int z = baseZ - radius; z <= baseZ + radius; z++) {
-                        for (int sign : new int[]{1, -1}) {
-                            int y = baseY + dy * sign + 1;
+            for (int sign : new int[]{1, -1}) {
+                if (dy == 0 && sign < 0) {
+                    continue;
+                }
+                int y = baseY + dy * sign;
+                for (int radius = 1; radius <= horizontal; radius++) {
+                    for (int x = baseX - radius; x <= baseX + radius; x++) {
+                        for (int z = baseZ - radius; z <= baseZ + radius; z++) {
+                            if (Math.max(Math.abs(x - baseX), Math.abs(z - baseZ)) != radius) {
+                                continue;
+                            }
                             Location candidate = new Location(world, x + 0.5D, y, z + 0.5D, anchorLocation.getYaw(), anchorLocation.getPitch());
                             if (isSafe(candidate)) {
                                 return candidate;
@@ -1263,7 +1273,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }
     }
 
-    private record Cost(int levels, int shards) {
+    private record Cost(int requiredLevels, int experiencePoints, int shards) {
     }
 
     private record Validation(boolean ok, String messageKey, Location safeDestination, String[] replacements) {
