@@ -52,6 +52,18 @@ Mỗi Soul Anchor là một điểm dịch chuyển vật lý. Người chơi ph
 - Bảo vệ anchor khỏi piston, explosion, fluid và người không phải chủ sở hữu.
 - Hỗ trợ resource pack để hiển thị model Soul Anchor riêng.
 
+Ví dụ khi người chơi bắt đầu đúng level yêu cầu và thanh XP đang ở đầu level:
+
+| Khoảng cách | Level yêu cầu | XP thực trừ | Level còn lại |
+| --- | ---: | ---: | ---: |
+| Đến 1.000 block | 10 | 80 XP | 6 |
+| Đến 2.000 block | 20 | 160 XP | 16 |
+| Đến 3.000 block | 30 | 240 XP | 27 |
+| Đến 4.000 block | 40 | 320 XP | 38 |
+| Đến 5.000 block | 50 | 400 XP | 48 |
+
+Các mốc tiếp theo tiếp tục theo cùng công thức: level yêu cầu tăng `10` mỗi `1.000 block`, còn XP thực trừ bằng `level yêu cầu × 8`. Level còn lại có thể khác bảng nếu người chơi có level hoặc tiến trình XP ban đầu cao hơn.
+
 ## Yêu Cầu
 
 - Minecraft server chạy Paper hoặc Purpur `1.21.11`.

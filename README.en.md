@@ -52,6 +52,18 @@ Each Soul Anchor is a physical teleport point. Players must interact with an anc
 - Protection against pistons, explosions, fluids, and non-owner breaking.
 - Resource pack support for a custom Soul Anchor model.
 
+Examples when the player starts at exactly the required level with an empty XP progress bar:
+
+| Distance | Required level | Actual XP charge | Remaining level |
+| --- | ---: | ---: | ---: |
+| Up to 1,000 blocks | 10 | 80 XP | 6 |
+| Up to 2,000 blocks | 20 | 160 XP | 16 |
+| Up to 3,000 blocks | 30 | 240 XP | 27 |
+| Up to 4,000 blocks | 40 | 320 XP | 38 |
+| Up to 5,000 blocks | 50 | 400 XP | 48 |
+
+Later tiers use the same formula: the required level increases by `10` per `1,000 blocks`, while the actual charge is `required level × 8` XP points. The remaining level can differ when the player starts with a higher level or existing XP progress.
+
 ## Requirements
 
 - Paper or Purpur `1.21.11`.

@@ -32,7 +32,7 @@ distance:
 
 teleport:
   echo-shard-cost: 1
-  # The level cost is only a requirement. Successful teleports charge raw XP points instead.
+  # Applies to every distance tier: required levels are a threshold, and successful teleports charge raw XP points.
   experience-points-per-required-level: 8
   warmup-seconds: 3
   cooldown-seconds: 30
