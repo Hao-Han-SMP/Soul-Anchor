@@ -4,8 +4,6 @@ limits:
 
 item:
   id: haohansmp:soul_anchor
-  # Vật phẩm nền chỉ dùng để bắt sự kiện đặt; model được trỏ trực tiếp bằng item-model.
-  # Không cần và không được override model vanilla của vật phẩm này trong resource pack.
   material: BARRIER
   item-model: haohansmp:soul_anchor
   placed-block: BARRIER
@@ -33,7 +31,6 @@ distance:
 teleport:
   echo-shard-cost: 1
   echo-shard-free-distance: 2000
-  # Applies to every distance tier: required levels are a threshold, and successful teleports charge raw XP points.
   experience-points-per-required-level: 8
   warmup-seconds: 3
   cooldown-seconds: 30
@@ -68,10 +65,7 @@ breaking:
   drop-item: true
 
 visuals:
-  # Phải là block opaque (ví dụ STONE/FURNACE/OBSIDIAN). PAPER hoặc GLASS khiến
-  # client đưa toàn bộ custom model vào render layer bán trong suốt khi bật shader.
   display-material: STONE
-  # Model gốc cao khoảng 1.254 block; scale-y 0.877 đưa chiều cao về khoảng 1.1 block.
   scale-x: 1.0
   scale-y: 0.877
   scale-z: 1.0
