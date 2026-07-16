@@ -495,6 +495,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             reloadConfig();
             loadMessages();
             registerRecipe();
+            refreshAnchorVisuals();
             send(sender, "reloaded");
             return true;
         }
@@ -868,7 +869,12 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
      * phụ thuộc vào GRINDSTONE, BARRIER hay CustomModelData của vật phẩm nền.
      */
     private ItemStack createAnchorDisplayItem() {
-        ItemStack item = new ItemStack(Material.PAPER);
+        // The backing material controls the render layer even when ITEM_MODEL replaces
+        // the visible geometry. A non-block item such as PAPER is rendered on the
+        // translucent item sheet by the client, which makes the whole custom model
+        // look transparent with some shaders. Use an opaque block item so the model is
+        // submitted to the solid render layer, like a furnace item model.
+        ItemStack item = new ItemStack(getAnchorDisplayMaterial());
         ItemMeta meta = item.getItemMeta();
         NamespacedKey itemModel = NamespacedKey.fromString(
                 getConfig().getString("item.item-model", "haohansmp:soul_anchor"));
@@ -1232,6 +1238,15 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         return material == null ? Material.BARRIER : material;
     }
 
+    private Material getAnchorDisplayMaterial() {
+        String configured = getConfig().getString("visuals.display-material", "STONE");
+        Material material = Material.matchMaterial(configured);
+        if (material == null || !material.isBlock() || !material.isOccluding()) {
+            return Material.STONE;
+        }
+        return material;
+    }
+
     private Anchor spawnVisuals(Anchor anchor) {
         Entity existingDisplay = anchor.visualId() == null ? null : Bukkit.getEntity(anchor.visualId());
         Entity existingInteraction = anchor.interactionId() == null ? null : Bukkit.getEntity(anchor.interactionId());
@@ -1262,6 +1277,13 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }
 
         return new Anchor(anchor.id(), anchor.ownerId(), anchor.name(), anchor.location(), anchor.yaw(), anchor.pitch(), anchor.createdAt(), anchor.sharedWith(), visualId, interactionId);
+    }
+
+    private void refreshAnchorVisuals() {
+        for (Anchor anchor : new ArrayList<>(anchorsById.values())) {
+            anchorsById.put(anchor.id(), spawnVisuals(anchor));
+        }
+        saveAnchors();
     }
 
     private void configureAnchorDisplay(ItemDisplay entity, Anchor anchor) {

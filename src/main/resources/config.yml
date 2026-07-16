@@ -68,6 +68,9 @@ breaking:
   drop-item: true
 
 visuals:
+  # Phải là block opaque (ví dụ STONE/FURNACE/OBSIDIAN). PAPER hoặc GLASS khiến
+  # client đưa toàn bộ custom model vào render layer bán trong suốt khi bật shader.
+  display-material: STONE
   # Model gốc cao khoảng 1.254 block; scale-y 0.877 đưa chiều cao về khoảng 1.1 block.
   scale-x: 1.0
   scale-y: 0.877
