@@ -44,7 +44,8 @@ Mỗi Soul Anchor là một điểm dịch chuyển vật lý. Người chơi ph
 - Giới hạn mặc định `3` Soul Anchor mỗi người chơi.
 - GUI 27 slot, 3 vị trí anchor được căn giữa.
 - Chủ anchor có thể dùng `/soulanchor share <anchor> <player>` để chia sẻ quyền dịch chuyển.
-- Anchor được share tính vào cùng giới hạn tối đa của người nhận; mặc định tổng anchor sở hữu và được share không vượt quá `3`.
+- Giới hạn chỉ áp dụng cho anchor do người chơi sở hữu; anchor được share không tính vào giới hạn.
+- GUI mặc định chỉ hiển thị tối đa `3` anchor sở hữu. Anchor được share nằm trong menu riêng có phân trang; mỗi người share chiếm một hàng với tối đa `3` điểm dịch chuyển.
 - Teleport có warmup, cooldown và kiểm tra vị trí an toàn.
 - Điểm đến ưu tiên vị trí đứng cạnh Soul Anchor.
 - Yêu cầu mặc định: `10 level / 1000 block`; quãng đường đến `2.000 block` không tốn Echo Shard.
@@ -189,13 +190,13 @@ mvn clean package
 File jar Maven nằm trong:
 
 ```text
-target/soul-anchor-1.0.3.jar
+target/soul-anchor-1.0.4.jar
 ```
 
 Trong workspace local có thể có thêm:
 
 ```text
-target/soul-anchor-1.0.3.jar
+target/soul-anchor-1.0.4.jar
 target/anchor_spawn_point_fixed.zip
 ```
 

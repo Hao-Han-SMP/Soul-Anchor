@@ -6,6 +6,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -52,6 +53,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -83,6 +85,9 @@ import java.util.stream.Collectors;
 public final class SoulAnchorPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private NamespacedKey itemTypeKey;
     private NamespacedKey anchorIdKey;
+    private NamespacedKey anchorNameKey;
+    private NamespacedKey trustedPlayersKey;
+    private NamespacedKey trustTargetKey;
     private NamespacedKey recipeKey;
     private File anchorsFile;
     private File messagesFile;
@@ -98,6 +103,9 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
     public void onEnable() {
         itemTypeKey = new NamespacedKey(this, "item_type");
         anchorIdKey = new NamespacedKey(this, "anchor_id");
+        anchorNameKey = new NamespacedKey(this, "anchor_name");
+        trustedPlayersKey = new NamespacedKey(this, "trusted_players");
+        trustTargetKey = new NamespacedKey(this, "trust_target");
         recipeKey = NamespacedKey.fromString(getConfig().getString("item.id", "haohansmp:soul_anchor"));
         if (recipeKey == null) {
             recipeKey = new NamespacedKey(this, "soul_anchor");
@@ -193,7 +201,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }
 
         int limit = getAnchorLimit(player);
-        if (limit >= 0 && accessibleAnchors(player.getUniqueId()).size() >= limit) {
+        if (limit >= 0 && ownedAnchors(player.getUniqueId()).size() >= limit) {
             event.setCancelled(true);
             send(player, "anchor-limit", "{limit}", String.valueOf(limit));
             return;
@@ -202,8 +210,12 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         Location location = event.getBlockPlaced().getLocation();
         location.getBlock().setType(getAnchorBlockMaterial(), false);
 
-        String name = nextDefaultName(player.getUniqueId());
-        Anchor anchor = new Anchor(UUID.randomUUID(), player.getUniqueId(), name, location, 0F, 0F, Instant.now().toEpochMilli(), Set.of(), null, null);
+        String storedName = readPortableAnchorName(handItem);
+        String name = storedName == null ? nextDefaultName(player.getUniqueId()) : storedName;
+        Set<UUID> trustedPlayers = readPortableTrustedPlayers(handItem);
+        trustedPlayers.remove(player.getUniqueId());
+        Anchor anchor = new Anchor(UUID.randomUUID(), player.getUniqueId(), name, location, 0F, 0F,
+                Instant.now().toEpochMilli(), trustedPlayers, null, null);
         anchor = spawnVisuals(anchor);
         anchorsById.put(anchor.id(), anchor);
         anchorIdsByLocation.put(locationKey(anchor.location()), anchor.id());
@@ -258,6 +270,14 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
 
     @EventHandler(ignoreCancelled = true)
     public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getInventory().getHolder() instanceof TrustMenuHolder holder) {
+            handleTrustMenuClick(event, holder);
+            return;
+        }
+        if (event.getInventory().getHolder() instanceof SharedAnchorMenuHolder holder) {
+            handleSharedAnchorMenuClick(event, holder);
+            return;
+        }
         if (!(event.getInventory().getHolder() instanceof AnchorMenuHolder holder)) {
             return;
         }
@@ -271,6 +291,20 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }
         UUID targetId = readAnchorId(item).orElse(null);
         if (targetId == null) {
+            if (event.getRawSlot() == 22 && item.getType() == Material.ENDER_PEARL) {
+                Anchor source = anchorsById.get(holder.sourceAnchorId());
+                if (source != null) {
+                    openSharedAnchorMenu(player, source, 0);
+                }
+                return;
+            }
+            if (item.getType() == Material.PLAYER_HEAD) {
+                Anchor source = anchorsById.get(holder.sourceAnchorId());
+                if (source != null && source.ownerId().equals(player.getUniqueId())) {
+                    openTrustMenu(player, source, 0);
+                }
+                return;
+            }
             if (item.getType() == Material.BARRIER) {
                 player.closeInventory();
             }
@@ -288,7 +322,9 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
 
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (event.getInventory().getHolder() instanceof AnchorMenuHolder) {
+        if (event.getInventory().getHolder() instanceof AnchorMenuHolder
+                || event.getInventory().getHolder() instanceof SharedAnchorMenuHolder
+                || event.getInventory().getHolder() instanceof TrustMenuHolder) {
             event.getInventory().clear();
         }
     }
@@ -311,7 +347,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         cancelWarmupsTouching(anchor.id());
         if (getConfig().getBoolean("breaking.drop-item", true)) {
             event.setDropItems(false);
-            event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation().add(0.5, 0.5, 0.5), createAnchorItem(1));
+            event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation().add(0.5, 0.5, 0.5),
+                    createPortableAnchorItem(anchor));
         }
         send(player, "anchor-broken", "{name}", anchor.name());
         player.playSound(player.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 0.8F, 1F);
@@ -362,7 +399,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             return;
         }
         double tolerance = getConfig().getDouble("teleport.movement-tolerance", 0.5D);
-        if (!sameWorld(warmup.startLocation, event.getTo()) || warmup.startLocation.distanceSquared(event.getTo()) > tolerance * tolerance) {
+        if (!sameWorld(warmup.startLocation, event.getTo())
+                || warmup.startLocation.distanceSquared(event.getTo()) > tolerance * tolerance) {
             warmup.cancel(true);
         }
     }
@@ -395,7 +433,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             cancelWarmupsTouching(anchor.id());
             anchor.location().getBlock().setType(Material.AIR, false);
             if (getConfig().getBoolean("breaking.drop-item", true)) {
-                breaker.getWorld().dropItemNaturally(anchor.location().clone().add(0.5, 0.5, 0.5), createAnchorItem(1));
+                breaker.getWorld().dropItemNaturally(anchor.location().clone().add(0.5, 0.5, 0.5),
+                        createPortableAnchorItem(anchor));
             }
             send(breaker, "anchor-broken", "{name}", anchor.name());
             return;
@@ -506,16 +545,20 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return StringUtil.copyPartialMatches(args[0], List.of("give", "list", "rename", "share", "reload"), new ArrayList<>());
+            return StringUtil.copyPartialMatches(args[0], List.of("give", "list", "rename", "share", "reload"),
+                    new ArrayList<>());
         }
         if (args.length == 2 && List.of("give", "list").contains(args[0].toLowerCase(Locale.ROOT))) {
             return null;
         }
-        if (sender instanceof Player player && args.length == 2 && List.of("rename", "share").contains(args[0].toLowerCase(Locale.ROOT))) {
-            return StringUtil.copyPartialMatches(args[1], ownedAnchors(player.getUniqueId()).stream().map(Anchor::name).toList(), new ArrayList<>());
+        if (sender instanceof Player player && args.length == 2
+                && List.of("rename", "share").contains(args[0].toLowerCase(Locale.ROOT))) {
+            return StringUtil.copyPartialMatches(args[1],
+                    ownedAnchors(player.getUniqueId()).stream().map(Anchor::name).toList(), new ArrayList<>());
         }
         if (sender instanceof Player && args.length >= 3 && args[0].equalsIgnoreCase("share")) {
-            return StringUtil.copyPartialMatches(args[args.length - 1], Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), new ArrayList<>());
+            return StringUtil.copyPartialMatches(args[args.length - 1],
+                    Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), new ArrayList<>());
         }
         return List.of();
     }
@@ -536,7 +579,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }
         int amount = args.length >= 3 ? parseInt(args[2], 1) : 1;
         amount = Math.max(1, Math.min(64, amount));
-        target.getInventory().addItem(createAnchorItem(amount)).values().forEach(leftover -> target.getWorld().dropItemNaturally(target.getLocation(), leftover));
+        target.getInventory().addItem(createAnchorItem(amount)).values()
+                .forEach(leftover -> target.getWorld().dropItemNaturally(target.getLocation(), leftover));
         send(sender, "given", "{amount}", String.valueOf(amount), "{player}", target.getName());
         return true;
     }
@@ -630,12 +674,6 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             return true;
         }
 
-        int limit = getAnchorLimit(target);
-        if (limit >= 0 && accessibleAnchors(target.getUniqueId()).size() >= limit) {
-            send(player, "share-target-limit", "{player}", target.getName(), "{limit}", String.valueOf(limit));
-            return true;
-        }
-
         Anchor shared = anchor.withSharedPlayer(target.getUniqueId());
         anchorsById.put(shared.id(), shared);
         saveAnchors();
@@ -646,7 +684,10 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
 
     private void listAnchors(CommandSender sender, Player owner) {
         List<Anchor> anchors = accessibleAnchors(owner.getUniqueId());
-        sender.sendMessage(color("&3Soul Anchors available to &f" + owner.getName() + "&7 (" + anchors.size() + "/" + getAnchorLimit(owner) + ")"));
+        int ownedCount = ownedAnchors(owner.getUniqueId()).size();
+        int sharedCount = anchors.size() - ownedCount;
+        sender.sendMessage(color("&3Soul Anchors available to &f" + owner.getName() + "&7 (owned: &f" + ownedCount
+                + "/" + getAnchorLimit(owner) + "&7, shared: &f" + sharedCount + "&7)"));
         if (anchors.isEmpty()) {
             sender.sendMessage(color("&7No Soul Anchors yet."));
             return;
@@ -654,7 +695,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         for (Anchor anchor : anchors) {
             Location loc = anchor.location();
             String access = anchor.ownerId().equals(owner.getUniqueId()) ? "" : " &d[shared]";
-            sender.sendMessage(color("&b- &f" + anchor.name() + access + " &7" + loc.getWorld().getName() + " " + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ()));
+            sender.sendMessage(color("&b- &f" + anchor.name() + access + " &7" + loc.getWorld().getName() + " "
+                    + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ()));
         }
     }
 
@@ -678,7 +720,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             return;
         }
 
-        int warmupSeconds = player.hasPermission("soulanchor.bypass.warmup") ? 0 : getConfig().getInt("teleport.warmup-seconds", 3);
+        int warmupSeconds = player.hasPermission("soulanchor.bypass.warmup") ? 0
+                : getConfig().getInt("teleport.warmup-seconds", 3);
         if (warmupSeconds <= 0) {
             finishTeleport(player, sourceId, targetId);
             return;
@@ -698,7 +741,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                 }
                 if (remainingTicks > 0) {
                     send(player, "warmup-tick", "{seconds}", String.valueOf(remainingTicks));
-                    player.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, player.getLocation().add(0, 1, 0), 8, 0.4, 0.6, 0.4, 0.01);
+                    player.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, player.getLocation().add(0, 1, 0), 8, 0.4,
+                            0.6, 0.4, 0.01);
                     remainingTicks--;
                     return;
                 }
@@ -740,7 +784,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         if (!player.hasPermission("soulanchor.bypass.cooldown")) {
             cooldowns.put(player.getUniqueId(), System.currentTimeMillis() + cooldownSeconds * 1000L);
         }
-        player.getWorld().spawnParticle(Particle.SCULK_SOUL, player.getLocation().add(0, 1, 0), 16, 0.5, 0.8, 0.5, 0.02);
+        player.getWorld().spawnParticle(Particle.SCULK_SOUL, player.getLocation().add(0, 1, 0), 16, 0.5, 0.8, 0.5,
+                0.02);
         player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.9F, 1.15F);
         send(player, "teleport-success", "{anchor}", target.name());
     }
@@ -759,14 +804,16 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         if (isWorldBlocked(target.location().getWorld())) {
             return Validation.fail("world-disabled");
         }
-        if (!sameWorld(source.location(), target.location()) && !getConfig().getBoolean("cross-dimension.enabled", true)) {
+        if (!sameWorld(source.location(), target.location())
+                && !getConfig().getBoolean("cross-dimension.enabled", true)) {
             return Validation.fail("teleport-failed");
         }
 
         Cost cost = calculateCost(source.location(), target.location());
         if (!player.hasPermission("soulanchor.bypass.cost")) {
             if (player.getLevel() < cost.requiredLevels()) {
-                return Validation.fail("not-enough-levels", "{required}", String.valueOf(cost.requiredLevels()), "{current}", String.valueOf(player.getLevel()));
+                return Validation.fail("not-enough-levels", "{required}", String.valueOf(cost.requiredLevels()),
+                        "{current}", String.valueOf(player.getLevel()));
             }
             if (countEchoShards(player) < cost.shards()) {
                 return Validation.fail("not-enough-shards", "{amount}", String.valueOf(cost.shards()));
@@ -785,47 +832,248 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
     }
 
     private void openMenu(Player player, Anchor source) {
-        Inventory inventory = Bukkit.createInventory(new AnchorMenuHolder(source.id()), 27, color("&3Soul Anchor Network"));
+        Inventory inventory = Bukkit.createInventory(new AnchorMenuHolder(source.id()), 27,
+                color("&3Soul Anchor Network"));
         for (int i = 0; i < inventory.getSize(); i++) {
             inventory.setItem(i, namedItem(Material.GRAY_STAINED_GLASS_PANE, " "));
         }
 
-        List<Anchor> anchors = accessibleAnchors(player.getUniqueId());
-        int[] slots = {11, 13, 15};
+        List<Anchor> anchors = ownedAnchors(player.getUniqueId());
+        int[] slots = { 11, 13, 15 };
         for (int i = 0; i < Math.min(slots.length, anchors.size()); i++) {
             Anchor target = anchors.get(i);
-            Cost cost = calculateCost(source.location(), target.location());
-            boolean current = source.id().equals(target.id());
-            List<String> lore = new ArrayList<>();
-            Location loc = target.location();
-            if (!target.ownerId().equals(player.getUniqueId())) {
-                lore.add("&dShared with you");
-            }
-            lore.add("&7World: &f" + loc.getWorld().getName());
-            lore.add("&7Coords: &f" + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ());
-            if (current) {
-                lore.add("");
-                lore.add("&eYou are at this Soul Anchor.");
-            } else {
-                lore.add("&7Distance: &f" + formatDistance(source.location(), target.location()) + " blocks");
-                lore.add("");
-                String requirement = "&7Requires: &a" + cost.requiredLevels() + " levels";
-                if (cost.shards() > 0) {
-                    requirement += " &7+ &b" + cost.shards() + " Echo Shard";
-                }
-                lore.add(requirement);
-                lore.add("&7XP charged: &e" + cost.experiencePoints() + " points");
-                lore.add("&fClick to teleport");
-            }
-            ItemStack icon = namedItem(current ? Material.LODESTONE : Material.RESPAWN_ANCHOR, "&b" + target.name(), lore);
-            if (!current) {
-                writeAnchorId(icon, target.id());
-            }
-            inventory.setItem(slots[i], icon);
+            inventory.setItem(slots[i], createTeleportIcon(source, target, null));
         }
-        inventory.setItem(4, namedItem(Material.ECHO_SHARD, "&bNetwork", List.of("&7Anchors: &f" + anchors.size() + "/" + getAnchorLimit(player), "&7Access: &fOwned + shared")));
-        inventory.setItem(22, namedItem(Material.BARRIER, "&cClose"));
+        int sharedCount = sharedAnchors(player.getUniqueId()).size();
+        inventory.setItem(4, namedItem(Material.ECHO_SHARD, "&bNetwork", List
+                .of("&7Owned anchors: &f" + anchors.size() + "/" + getAnchorLimit(player),
+                        "&7Shared with you: &f" + sharedCount)));
+        if (source.ownerId().equals(player.getUniqueId()) && player.hasPermission("soulanchor.share")) {
+            inventory.setItem(18, namedItem(Material.PLAYER_HEAD, "&bManage trust", List.of(
+                    "&7Share &f" + source.name() + " &7with online players.",
+                    "&7Trusted players: &f" + source.sharedWith().size(),
+                    "", "&fClick to open")));
+        }
+        inventory.setItem(22, namedItem(Material.ENDER_PEARL, "&dShared anchors", List.of(
+                "&7All teleport points shared with you.",
+                "&7Available: &f" + sharedCount,
+                "", "&fClick to open")));
+        inventory.setItem(26, namedItem(Material.BARRIER, "&cClose"));
         player.openInventory(inventory);
+    }
+
+    private ItemStack createTeleportIcon(Anchor source, Anchor target, String ownerName) {
+        Cost cost = calculateCost(source.location(), target.location());
+        boolean current = source.id().equals(target.id());
+        List<String> lore = new ArrayList<>();
+        Location loc = target.location();
+        if (ownerName != null) {
+            lore.add("&dShared by: &f" + ownerName);
+        }
+        lore.add("&7World: &f" + loc.getWorld().getName());
+        lore.add("&7Coords: &f" + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ());
+        if (current) {
+            lore.add("");
+            lore.add("&eYou are at this Soul Anchor.");
+        } else {
+            lore.add("&7Distance: &f" + formatDistance(source.location(), target.location()) + " blocks");
+            lore.add("");
+            String requirement = "&7Requires: &a" + cost.requiredLevels() + " levels";
+            if (cost.shards() > 0) {
+                requirement += " &7+ &b" + cost.shards() + " Echo Shard";
+            }
+            lore.add(requirement);
+            lore.add("&7XP charged: &e" + cost.experiencePoints() + " points");
+            lore.add("&fClick to teleport");
+        }
+        ItemStack icon = namedItem(current ? Material.LODESTONE : Material.RESPAWN_ANCHOR, "&b" + target.name(), lore);
+        if (!current) {
+            writeAnchorId(icon, target.id());
+        }
+        return icon;
+    }
+
+    private void openSharedAnchorMenu(Player player, Anchor source, int requestedPage) {
+        List<SharedAnchorGroup> groups = sharedAnchorGroups(player.getUniqueId());
+        int anchorCount = groups.stream().mapToInt(group -> group.anchors().size()).sum();
+        int pageCount = Math.max(1, (groups.size() + 4) / 5);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        Inventory inventory = Bukkit.createInventory(new SharedAnchorMenuHolder(source.id(), page), 54,
+                color("&3Shared Soul Anchors"));
+        for (int i = 0; i < inventory.getSize(); i++) {
+            inventory.setItem(i, namedItem(Material.GRAY_STAINED_GLASS_PANE, " "));
+        }
+
+        int start = page * 5;
+        for (int row = 0; row < 5 && start + row < groups.size(); row++) {
+            SharedAnchorGroup group = groups.get(start + row);
+            String ownerName = playerName(Bukkit.getOfflinePlayer(group.ownerId()));
+            int rowStart = row * 9;
+            inventory.setItem(rowStart + 1, namedItem(Material.NAME_TAG, "&d" + ownerName, List.of(
+                    "&7Shared anchors: &f" + group.anchors().size())));
+            int[] anchorSlots = { rowStart + 3, rowStart + 4, rowStart + 5 };
+            for (int index = 0; index < Math.min(anchorSlots.length, group.anchors().size()); index++) {
+                inventory.setItem(anchorSlots[index],
+                        createTeleportIcon(source, group.anchors().get(index), ownerName));
+            }
+        }
+
+        if (page > 0) {
+            inventory.setItem(45, namedItem(Material.ARROW, "&bPrevious page"));
+        }
+        inventory.setItem(49, namedItem(Material.ENDER_PEARL, "&dShared anchors", List.of(
+                "&7Available: &f" + anchorCount,
+                "&7Players: &f" + groups.size(),
+                "&7Page: &f" + (page + 1) + "/" + pageCount)));
+        inventory.setItem(52, namedItem(Material.OAK_DOOR, "&eBack to owned anchors"));
+        if (page + 1 < pageCount) {
+            inventory.setItem(53, namedItem(Material.ARROW, "&bNext page"));
+        } else {
+            inventory.setItem(53, namedItem(Material.BARRIER, "&cClose"));
+        }
+        player.openInventory(inventory);
+    }
+
+    private void handleSharedAnchorMenuClick(InventoryClickEvent event, SharedAnchorMenuHolder holder) {
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        Anchor source = anchorsById.get(holder.sourceAnchorId());
+        if (source == null || (!canAccessAnchor(player.getUniqueId(), source)
+                && !player.hasPermission("soulanchor.admin"))) {
+            player.closeInventory();
+            send(player, "teleport-failed");
+            return;
+        }
+        ItemStack item = event.getCurrentItem();
+        if (item == null || item.getType().isAir()) {
+            return;
+        }
+        int slot = event.getRawSlot();
+        if (slot == 45 && item.getType() == Material.ARROW) {
+            openSharedAnchorMenu(player, source, holder.page() - 1);
+            return;
+        }
+        if (slot == 52 && item.getType() == Material.OAK_DOOR) {
+            openMenu(player, source);
+            return;
+        }
+        if (slot == 53) {
+            if (item.getType() == Material.ARROW) {
+                openSharedAnchorMenu(player, source, holder.page() + 1);
+            } else if (item.getType() == Material.BARRIER) {
+                player.closeInventory();
+            }
+            return;
+        }
+        UUID targetId = readAnchorId(item).orElse(null);
+        Anchor target = targetId == null ? null : anchorsById.get(targetId);
+        if (target == null || !target.sharedWith().contains(player.getUniqueId())) {
+            return;
+        }
+        player.closeInventory();
+        requestTeleport(player, source.id(), target.id());
+    }
+
+    private void openTrustMenu(Player player, Anchor anchor, int requestedPage) {
+        if (!anchor.ownerId().equals(player.getUniqueId()) || !player.hasPermission("soulanchor.share")) {
+            send(player, "no-permission");
+            return;
+        }
+
+        List<? extends Player> targets = Bukkit.getOnlinePlayers().stream()
+                .filter(target -> !target.getUniqueId().equals(player.getUniqueId()))
+                .sorted(Comparator.comparing(Player::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+        int pageCount = Math.max(1, (targets.size() + 44) / 45);
+        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        Inventory inventory = Bukkit.createInventory(new TrustMenuHolder(anchor.id(), page), 54,
+                color("&3Trust: &f" + anchor.name()));
+
+        int start = page * 45;
+        for (int slot = 0; slot < 45 && start + slot < targets.size(); slot++) {
+            Player target = targets.get(start + slot);
+            boolean trusted = anchor.sharedWith().contains(target.getUniqueId());
+            int used = ownedAnchors(target.getUniqueId()).size();
+            int limit = getAnchorLimit(target);
+            List<String> lore = new ArrayList<>();
+            lore.add("&7Anchor: &f" + anchor.name());
+            lore.add("&7Status: " + (trusted ? "&aTrusted" : "&cNot trusted"));
+            lore.add("&7Owned anchors: &f" + used + "/" + (limit < 0 ? "unlimited" : limit));
+            lore.add("");
+            lore.add(trusted ? "&eClick to revoke access" : "&aClick to share this anchor");
+            inventory.setItem(slot, playerHead(target, trusted ? "&a" + target.getName() : "&f" + target.getName(),
+                    lore));
+        }
+
+        for (int slot = 45; slot < 54; slot++) {
+            inventory.setItem(slot, namedItem(Material.GRAY_STAINED_GLASS_PANE, " "));
+        }
+        if (page > 0) {
+            inventory.setItem(45, namedItem(Material.ARROW, "&bPrevious page"));
+        }
+        inventory.setItem(49, namedItem(Material.RESPAWN_ANCHOR, "&b" + anchor.name(), List.of(
+                "&7Online players: &f" + targets.size(),
+                "&7Trusted players: &f" + anchor.sharedWith().size(),
+                "&7Page: &f" + (page + 1) + "/" + pageCount)));
+        if (page + 1 < pageCount) {
+            inventory.setItem(53, namedItem(Material.ARROW, "&bNext page"));
+        } else {
+            inventory.setItem(53, namedItem(Material.BARRIER, "&cBack"));
+        }
+        player.openInventory(inventory);
+    }
+
+    private void handleTrustMenuClick(InventoryClickEvent event, TrustMenuHolder holder) {
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        Anchor anchor = anchorsById.get(holder.anchorId());
+        if (anchor == null || !anchor.ownerId().equals(player.getUniqueId())
+                || !player.hasPermission("soulanchor.share")) {
+            player.closeInventory();
+            send(player, anchor == null ? "not-anchor" : "no-permission");
+            return;
+        }
+
+        int slot = event.getRawSlot();
+        if (slot == 45 && event.getCurrentItem() != null && event.getCurrentItem().getType() == Material.ARROW) {
+            openTrustMenu(player, anchor, holder.page() - 1);
+            return;
+        }
+        if (slot == 53 && event.getCurrentItem() != null) {
+            if (event.getCurrentItem().getType() == Material.ARROW) {
+                openTrustMenu(player, anchor, holder.page() + 1);
+            } else if (event.getCurrentItem().getType() == Material.BARRIER) {
+                openMenu(player, anchor);
+            }
+            return;
+        }
+
+        ItemStack item = event.getCurrentItem();
+        UUID targetId = readTrustTarget(item).orElse(null);
+        Player target = targetId == null ? null : Bukkit.getPlayer(targetId);
+        if (target == null) {
+            return;
+        }
+        if (anchor.sharedWith().contains(targetId)) {
+            Anchor updated = anchor.withoutSharedPlayer(targetId);
+            anchorsById.put(updated.id(), updated);
+            saveAnchors();
+            send(player, "anchor-unshared", "{anchor}", updated.name(), "{player}", target.getName());
+            send(target, "anchor-unshared-received", "{anchor}", updated.name(), "{player}", player.getName());
+            openTrustMenu(player, updated, holder.page());
+            return;
+        }
+
+        Anchor updated = anchor.withSharedPlayer(targetId);
+        anchorsById.put(updated.id(), updated);
+        saveAnchors();
+        send(player, "anchor-shared", "{anchor}", updated.name(), "{player}", target.getName());
+        send(target, "anchor-shared-received", "{anchor}", updated.name(), "{player}", player.getName());
+        openTrustMenu(player, updated, holder.page());
     }
 
     private void registerRecipe() {
@@ -857,15 +1105,87 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         if (itemModel != null) {
             meta.setItemModel(itemModel);
         }
-        // Giữ CMD để nhận diện/debug item cũ, nhưng resource pack mới không phụ thuộc vào nó.
+        // Giữ CMD để nhận diện/debug item cũ, nhưng resource pack mới không phụ thuộc
+        // vào nó.
         meta.setCustomModelData(getConfig().getInt("item.custom-model-data", 910001));
-        meta.getPersistentDataContainer().set(itemTypeKey, PersistentDataType.STRING, getConfig().getString("item.id", "haohansmp:soul_anchor"));
+        meta.getPersistentDataContainer().set(itemTypeKey, PersistentDataType.STRING,
+                getConfig().getString("item.id", "haohansmp:soul_anchor"));
         item.setItemMeta(meta);
         return item;
     }
 
+    private ItemStack createPortableAnchorItem(Anchor anchor) {
+        ItemStack item = createAnchorItem(1);
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        pdc.set(anchorNameKey, PersistentDataType.STRING, anchor.name());
+        if (!anchor.sharedWith().isEmpty()) {
+            String trustedPlayers = anchor.sharedWith().stream().map(UUID::toString).sorted()
+                    .collect(Collectors.joining(","));
+            pdc.set(trustedPlayersKey, PersistentDataType.STRING, trustedPlayers);
+        }
+        List<String> lore = new ArrayList<>(meta.getLore() == null ? List.of() : meta.getLore());
+        lore.add("");
+        lore.add(color("&7Saved name: &f" + anchor.name()));
+        lore.add(color("&7Saved trust: &f" + anchor.sharedWith().size() + " player(s)"));
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private String readPortableAnchorName(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return null;
+        }
+        String name = item.getItemMeta().getPersistentDataContainer().get(anchorNameKey, PersistentDataType.STRING);
+        return name == null || name.isBlank() ? null : sanitizeName(name);
+    }
+
+    private Set<UUID> readPortableTrustedPlayers(ItemStack item) {
+        Set<UUID> trustedPlayers = new HashSet<>();
+        if (item == null || !item.hasItemMeta()) {
+            return trustedPlayers;
+        }
+        String raw = item.getItemMeta().getPersistentDataContainer()
+                .get(trustedPlayersKey, PersistentDataType.STRING);
+        if (raw == null || raw.isBlank()) {
+            return trustedPlayers;
+        }
+        for (String entry : raw.split(",")) {
+            UUID playerId = readUuid(entry);
+            if (playerId != null) {
+                trustedPlayers.add(playerId);
+            }
+        }
+        return trustedPlayers;
+    }
+
+    private ItemStack playerHead(Player target, String displayName, List<String> lore) {
+        ItemStack item = namedItem(Material.PLAYER_HEAD, displayName, lore);
+        SkullMeta meta = (SkullMeta) item.getItemMeta();
+        meta.setPlayerProfile(target.getPlayerProfile());
+        meta.getPersistentDataContainer().set(trustTargetKey, PersistentDataType.STRING,
+                target.getUniqueId().toString());
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private String playerName(OfflinePlayer player) {
+        String name = player.getName();
+        return name == null || name.isBlank() ? player.getUniqueId().toString().substring(0, 8) : name;
+    }
+
+    private Optional<UUID> readTrustTarget(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(readUuid(item.getItemMeta().getPersistentDataContainer()
+                .get(trustTargetKey, PersistentDataType.STRING)));
+    }
+
     /**
-     * Stack chỉ dành cho ItemDisplay. Tách khỏi item craft/place để model không bao giờ
+     * Stack chỉ dành cho ItemDisplay. Tách khỏi item craft/place để model không bao
+     * giờ
      * phụ thuộc vào GRINDSTONE, BARRIER hay CustomModelData của vật phẩm nền.
      */
     private ItemStack createAnchorDisplayItem() {
@@ -965,8 +1285,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                     node.getLong("created-at", System.currentTimeMillis()),
                     sharedWith,
                     readUuid(node.getString("visual-uuid")),
-                    readUuid(node.getString("interaction-uuid"))
-            );
+                    readUuid(node.getString("interaction-uuid")));
             if (location.getBlock().getType() == Material.AIR
                     || location.getBlock().getType() == Material.GRINDSTONE
                     || location.getBlock().getType() == Material.JIGSAW) {
@@ -993,9 +1312,11 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
             anchorsConfig.set(path + ".yaw", anchor.yaw());
             anchorsConfig.set(path + ".pitch", anchor.pitch());
             anchorsConfig.set(path + ".created-at", anchor.createdAt());
-            anchorsConfig.set(path + ".shared-with", anchor.sharedWith().stream().map(UUID::toString).sorted().toList());
+            anchorsConfig.set(path + ".shared-with",
+                    anchor.sharedWith().stream().map(UUID::toString).sorted().toList());
             anchorsConfig.set(path + ".visual-uuid", anchor.visualId() == null ? null : anchor.visualId().toString());
-            anchorsConfig.set(path + ".interaction-uuid", anchor.interactionId() == null ? null : anchor.interactionId().toString());
+            anchorsConfig.set(path + ".interaction-uuid",
+                    anchor.interactionId() == null ? null : anchor.interactionId().toString());
         }
         try {
             anchorsConfig.save(anchorsFile);
@@ -1052,6 +1373,27 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                 .collect(Collectors.toList());
     }
 
+    private List<Anchor> sharedAnchors(UUID playerId) {
+        return anchorsById.values().stream()
+                .filter(anchor -> !anchor.ownerId().equals(playerId) && anchor.sharedWith().contains(playerId))
+                .sorted(Comparator.comparing((Anchor anchor) -> playerName(Bukkit.getOfflinePlayer(anchor.ownerId())),
+                        String.CASE_INSENSITIVE_ORDER).thenComparingLong(Anchor::createdAt))
+                .collect(Collectors.toList());
+    }
+
+    private List<SharedAnchorGroup> sharedAnchorGroups(UUID playerId) {
+        Map<UUID, List<Anchor>> anchorsByOwner = new HashMap<>();
+        for (Anchor anchor : sharedAnchors(playerId)) {
+            anchorsByOwner.computeIfAbsent(anchor.ownerId(), ignored -> new ArrayList<>()).add(anchor);
+        }
+        return anchorsByOwner.entrySet().stream()
+                .sorted(Comparator.comparing(
+                        entry -> playerName(Bukkit.getOfflinePlayer(entry.getKey())),
+                        String.CASE_INSENSITIVE_ORDER))
+                .map(entry -> new SharedAnchorGroup(entry.getKey(), List.copyOf(entry.getValue())))
+                .toList();
+    }
+
     private boolean canAccessAnchor(UUID playerId, Anchor anchor) {
         return anchor.ownerId().equals(playerId) || anchor.sharedWith().contains(playerId);
     }
@@ -1059,12 +1401,14 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
     private Optional<Anchor> findOwnedAnchor(UUID ownerId, String nameOrId) {
         String query = nameOrId.toLowerCase(Locale.ROOT);
         return ownedAnchors(ownerId).stream()
-                .filter(anchor -> anchor.id().toString().equalsIgnoreCase(nameOrId) || anchor.name().toLowerCase(Locale.ROOT).equals(query))
+                .filter(anchor -> anchor.id().toString().equalsIgnoreCase(nameOrId)
+                        || anchor.name().toLowerCase(Locale.ROOT).equals(query))
                 .findFirst();
     }
 
     private String nextDefaultName(UUID ownerId) {
-        Set<String> existing = ownedAnchors(ownerId).stream().map(Anchor::name).collect(Collectors.toCollection(HashSet::new));
+        Set<String> existing = ownedAnchors(ownerId).stream().map(Anchor::name)
+                .collect(Collectors.toCollection(HashSet::new));
         for (int i = 1; i <= 99; i++) {
             String name = "Soul Anchor #" + i;
             if (!existing.contains(name)) {
@@ -1080,7 +1424,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }
         int limit = getConfig().getInt("limits.default", 3);
         if (getConfig().getBoolean("limits.permission-based", true)) {
-            for (String permission : player.getEffectivePermissions().stream().map(info -> info.getPermission()).toList()) {
+            for (String permission : player.getEffectivePermissions().stream().map(info -> info.getPermission())
+                    .toList()) {
                 if (permission.startsWith("soulanchor.limit.")) {
                     String raw = permission.substring("soulanchor.limit.".length());
                     if (!raw.equals("unlimited")) {
@@ -1112,7 +1457,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                     : Math.max(0, getConfig().getInt("teleport.echo-shard-cost", 1));
         }
 
-        int pointsPerRequiredLevel = Math.max(0, getConfig().getInt("teleport.experience-points-per-required-level", 8));
+        int pointsPerRequiredLevel = Math.max(0,
+                getConfig().getInt("teleport.experience-points-per-required-level", 8));
         int experiencePoints = (int) Math.min(Integer.MAX_VALUE, (long) requiredLevels * pointsPerRequiredLevel);
         return new Cost(requiredLevels, experiencePoints, shards);
     }
@@ -1163,7 +1509,7 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         int baseZ = anchorLocation.getBlockZ();
 
         for (int dy = 0; dy <= vertical; dy++) {
-            for (int sign : new int[]{1, -1}) {
+            for (int sign : new int[] { 1, -1 }) {
                 if (dy == 0 && sign < 0) {
                     continue;
                 }
@@ -1174,7 +1520,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
                             if (Math.max(Math.abs(x - baseX), Math.abs(z - baseZ)) != radius) {
                                 continue;
                             }
-                            Location candidate = new Location(world, x + 0.5D, y, z + 0.5D, anchorLocation.getYaw(), anchorLocation.getPitch());
+                            Location candidate = new Location(world, x + 0.5D, y, z + 0.5D, anchorLocation.getYaw(),
+                                    anchorLocation.getPitch());
                             if (isSafe(candidate)) {
                                 return candidate;
                             }
@@ -1188,7 +1535,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
 
     private boolean isSafe(Location location) {
         World world = location.getWorld();
-        if (world == null || location.getBlockY() <= world.getMinHeight() || location.getBlockY() >= world.getMaxHeight() - 2) {
+        if (world == null || location.getBlockY() <= world.getMinHeight()
+                || location.getBlockY() >= world.getMaxHeight() - 2) {
             return false;
         }
         WorldBorder border = world.getWorldBorder();
@@ -1270,13 +1618,15 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
 
         if (interactionId == null) {
             Location interactionLocation = anchor.location().clone().add(0.5D, 0.2D, 0.5D);
-            Interaction interaction = anchor.location().getWorld().spawn(interactionLocation, Interaction.class, entity -> {
-                configureAnchorInteraction(entity, anchor.id());
-            });
+            Interaction interaction = anchor.location().getWorld().spawn(interactionLocation, Interaction.class,
+                    entity -> {
+                        configureAnchorInteraction(entity, anchor.id());
+                    });
             interactionId = interaction.getUniqueId();
         }
 
-        return new Anchor(anchor.id(), anchor.ownerId(), anchor.name(), anchor.location(), anchor.yaw(), anchor.pitch(), anchor.createdAt(), anchor.sharedWith(), visualId, interactionId);
+        return new Anchor(anchor.id(), anchor.ownerId(), anchor.name(), anchor.location(), anchor.yaw(), anchor.pitch(),
+                anchor.createdAt(), anchor.sharedWith(), visualId, interactionId);
     }
 
     private void refreshAnchorVisuals() {
@@ -1350,7 +1700,8 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         if (player.getGameMode() == GameMode.CREATIVE) {
             return;
         }
-        ItemStack stack = hand == EquipmentSlot.OFF_HAND ? player.getInventory().getItemInOffHand() : player.getInventory().getItemInMainHand();
+        ItemStack stack = hand == EquipmentSlot.OFF_HAND ? player.getInventory().getItemInOffHand()
+                : player.getInventory().getItemInMainHand();
         if (stack.getAmount() <= 1) {
             if (hand == EquipmentSlot.OFF_HAND) {
                 player.getInventory().setItemInOffHand(null);
@@ -1370,11 +1721,13 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
     }
 
     private boolean sameWorld(Location left, Location right) {
-        return left.getWorld() != null && right.getWorld() != null && left.getWorld().getUID().equals(right.getWorld().getUID());
+        return left.getWorld() != null && right.getWorld() != null
+                && left.getWorld().getUID().equals(right.getWorld().getUID());
     }
 
     private String locationKey(Location location) {
-        return location.getWorld().getUID() + ":" + location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ();
+        return location.getWorld().getUID() + ":" + location.getBlockX() + ":" + location.getBlockY() + ":"
+                + location.getBlockZ();
     }
 
     private int parseInt(String raw, int fallback) {
@@ -1446,18 +1799,26 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
         }.runTaskTimer(this, interval, interval);
     }
 
-    private record Anchor(UUID id, UUID ownerId, String name, Location location, float yaw, float pitch, long createdAt, Set<UUID> sharedWith, UUID visualId, UUID interactionId) {
+    private record Anchor(UUID id, UUID ownerId, String name, Location location, float yaw, float pitch, long createdAt,
+            Set<UUID> sharedWith, UUID visualId, UUID interactionId) {
         Anchor {
             sharedWith = Set.copyOf(sharedWith);
         }
 
         Anchor withName(String newName) {
-            return new Anchor(id, ownerId, newName, location, yaw, pitch, createdAt, sharedWith, visualId, interactionId);
+            return new Anchor(id, ownerId, newName, location, yaw, pitch, createdAt, sharedWith, visualId,
+                    interactionId);
         }
 
         Anchor withSharedPlayer(UUID playerId) {
             Set<UUID> updated = new HashSet<>(sharedWith);
             updated.add(playerId);
+            return new Anchor(id, ownerId, name, location, yaw, pitch, createdAt, updated, visualId, interactionId);
+        }
+
+        Anchor withoutSharedPlayer(UUID playerId) {
+            Set<UUID> updated = new HashSet<>(sharedWith);
+            updated.remove(playerId);
             return new Anchor(id, ownerId, name, location, yaw, pitch, createdAt, updated, visualId, interactionId);
         }
     }
@@ -1489,6 +1850,55 @@ public final class SoulAnchorPlugin extends JavaPlugin implements Listener, Comm
 
         private UUID sourceAnchorId() {
             return sourceAnchorId;
+        }
+    }
+
+    private record SharedAnchorGroup(UUID ownerId, List<Anchor> anchors) {
+    }
+
+    private static final class SharedAnchorMenuHolder implements InventoryHolder {
+        private final UUID sourceAnchorId;
+        private final int page;
+
+        private SharedAnchorMenuHolder(UUID sourceAnchorId, int page) {
+            this.sourceAnchorId = sourceAnchorId;
+            this.page = page;
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return null;
+        }
+
+        private UUID sourceAnchorId() {
+            return sourceAnchorId;
+        }
+
+        private int page() {
+            return page;
+        }
+    }
+
+    private static final class TrustMenuHolder implements InventoryHolder {
+        private final UUID anchorId;
+        private final int page;
+
+        private TrustMenuHolder(UUID anchorId, int page) {
+            this.anchorId = anchorId;
+            this.page = page;
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return null;
+        }
+
+        private UUID anchorId() {
+            return anchorId;
+        }
+
+        private int page() {
+            return page;
         }
     }
 

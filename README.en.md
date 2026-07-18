@@ -44,7 +44,8 @@ Each Soul Anchor is a physical teleport point. Players must interact with an anc
 - Default limit of `3` Soul Anchors per player.
 - 27-slot GUI with the three anchor positions centered.
 - Anchor owners can grant teleport access with `/soulanchor share <anchor> <player>`.
-- Shared anchors count toward the recipient's same limit; by default, owned and shared anchors combined cannot exceed `3`.
+- The limit applies only to anchors a player owns; shared anchors do not count toward it.
+- The default GUI shows the player's owned anchors. Shared anchors use a separate paginated menu with one row and up to `3` teleport points per owner.
 - Teleport warmup, cooldown, and safe-location checks.
 - Destination search prefers a safe block beside the target Soul Anchor.
 - Default requirement: `10 levels / 1000 blocks`; travel up to `2,000 blocks` costs no Echo Shard.
@@ -189,13 +190,13 @@ mvn clean package
 Maven jar output:
 
 ```text
-target/soul-anchor-1.0.3.jar
+target/soul-anchor-1.0.4.jar
 ```
 
 The local workspace may also contain:
 
 ```text
-target/soul-anchor-1.0.3.jar
+target/soul-anchor-1.0.4.jar
 target/anchor_spawn_point_fixed.zip
 ```
 
